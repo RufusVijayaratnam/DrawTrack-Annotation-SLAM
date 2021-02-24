@@ -62,7 +62,7 @@ def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.5):
     step_count = 0
     up_unit_vec = [0, 0, 1]
     forward_unit = np.array([0, -1, 0])
-    for i in range(render_pairs - 2):
+    for i in range(render_pairs - 1):
         p1 = track_points_ws[i + 1]
         p0 = track_points_ws[i]
         d1 = track_direction[i + 1]
