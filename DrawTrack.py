@@ -10,7 +10,7 @@ blank_image[:] = (255, 255, 255)
 indicator_radius_px = 5 #radius of indicator size when clicking. 
 
 track_directory = "/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/Tracks/"
-track_name = "track2.txt"
+track_name = "SimpleCircle.txt"
 
 #This is unencessary but I don't want to remove it because of the file reading.
 isClosed = False
@@ -32,7 +32,7 @@ def write_point(file, point_x, point_y):
     point_y -= float(im_size / 2)
     """ point_x = point_x * grid_representation / grid_size * -1 #Just because
     point_y = point_y * grid_representation / grid_size """
-    point_x /= (im_size / area_size_m)
+    point_x /= -(im_size / area_size_m) #Coordinate convention
     point_y /= (im_size / area_size_m)
     f.write("p %f %f 0.0 \r\n" % (point_x, point_y))
 

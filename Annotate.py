@@ -189,7 +189,7 @@ def annotate_track(image_folder, track_folder, track_name):
         print ("Creation of the directory %s failed" % path)
     else:
         print ("Successfully created the directory %s " % path)
-    for i in range(10):
+    for i in range(len(renders)):
         render = renders[i]
         left = "Left_Cam"
         right = "Right_Cam"
