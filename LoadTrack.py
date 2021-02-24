@@ -1,21 +1,5 @@
 import numpy as np
-
-def gen_rotation_matrix(alpha, beta, gamma):
-    rz = np.matrix([[np.cos(gamma), -np.sin(gamma),  0],
-                    [np.sin(gamma),  np.cos(gamma),  0],
-                    [0,                          0,  0]])
-
-    ry = np.matrix([[np.cos(beta),  0, np.sin(beta)],
-                    [0,             1,             0],
-                    [-np.sin(beta), 0, np.cos(beta)]])
-
-
-    rx = np.matrix([[1,            0,               0],
-                    [0, np.cos(alpha), -np.sin(alpha)], 
-                    [0, np.sin(alpha), np.cos(alpha)]])
-
-    rotation_matrix = rz * ry * rx
-    return rotation_matrix
+from MatrixTools import *
 
 def load_cones(file, cone_separation_m=2.5):
     track_direction_ws, trackpoints_ws = load_track(file)
@@ -65,50 +49,51 @@ def load_track(file):
     return track_direction_worldspace, trackpoints_worldspace
 
 def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.5):
+    #Track direction are all unit vectors
     track_direction, track_points_ws = load_track(filepath)
     render_points = np.ndarray((substeps * len(track_points_ws), 3))
-    step_count = 0
-    for i in range(0, (len(track_points_ws) - 1)):
-        p1 = track_points_ws[i + 1]
-        p0 = track_points_ws[i]
-        vec = np.subtract(p1, p0)
-        step_vec = vec / substeps
-        for j in range(substeps):
-            point = p0 + step_vec * j
-            render_points[step_count] = point
-            step_count += 1
 
-    up_unit_vec = [0, 0, 1]
-    render_pairs = len(render_points) - 1
+    render_pairs = substeps * len(track_direction)
+    #Next three lines are all in blender space
     left_cam_points_ws = np.ndarray((render_pairs, 3))
     right_cam_points_ws = np.ndarray((render_pairs, 3))
     blender_cam_rotation_ws = np.ndarray((render_pairs, 3))
-    annotation_cam_rotation_ws = np.ndarray((render_pairs, 3))
-
-
-    for i in range(render_pairs):
-        p1 = render_points[i + 1]
-        p0 = render_points[i]
+    
+    step_count = 0
+    up_unit_vec = [0, 0, 1]
+    forward_unit = np.array([0, -1, 0])
+    for i in range(render_pairs - 2):
+        p1 = track_points_ws[i + 1]
+        p0 = track_points_ws[i]
+        d1 = track_direction[i + 1]
+        d0 = track_direction[i]
+        print("d0: \n", d0)
+        total_turn_angle_rad = np.arccos(np.dot(d1, d0)) #About Z blender space
+        print("turn angle is %f degrees" % np.rad2deg(total_turn_angle_rad))
+        step_turn_angle_rad = total_turn_angle_rad / substeps
         vec = np.subtract(p1, p0)
-        direction = vec / np.linalg.norm(vec)
-        cross_vec = np.cross(up_unit_vec, direction)
-        right_cam_loc_ws = render_points[i] - 0.5 * cam_spacing * cross_vec
-        right_cam_loc_ws[2] = 0.5
-        left_cam_loc_ws = render_points[i] + 0.5 * cam_spacing * cross_vec
-        left_cam_loc_ws[2] = 0.5
-        y_unit = np.array([0, 1, 0])
-        rz = 360 - np.arccos(np.dot(y_unit, vec) / (np.linalg.norm(vec) * np.linalg.norm(y_unit))) * 180 / np.pi
-        cam_rot = np.array([90, 0, rz])
-        anno_cam_rot = np.array([0, rz, 0]) #Definitely not the best way of doing this
-        left_cam_points_ws[i] = left_cam_loc_ws
-        right_cam_points_ws[i] = right_cam_loc_ws
-        blender_cam_rotation_ws[i] = cam_rot
-        annotation_cam_rotation_ws[i] = anno_cam_rot
-        #set_camera_ext(right_cam, right_cam_loc_ws, cam_rot)
-        #render_save(right_cam)
-        #set_camera_ext(left_cam, left_cam_loc_ws, cam_rot)
-        #render_save(left_cam)
-
+        step_vec = vec / substeps
+        for j in range(substeps):
+            rotation_matrix = gen_rotation_matrix(0, 0, -step_turn_angle_rad * (j + 1))
+            print("current turn angle is: ", np.rad2deg((step_turn_angle_rad * (j + 1))))
+            direction = rotation_matrix * np.matrix(d0).transpose()
+            direction = np.asarray(direction.transpose())[0]
+            cone_chord = np.cross(up_unit_vec, direction)
+            print("cone_chord: \n", cone_chord)
+            point = p0 + step_vec * j
+            right_cam_loc_ws = point - 0.5 * cam_spacing * cone_chord 
+            right_cam_loc_ws[2] = 0.5
+            left_cam_loc_ws = point + 0.5 * cam_spacing * cone_chord
+            left_cam_loc_ws[2] = 0.5
+            rz = 180 - np.rad2deg(np.arccos(np.dot(direction, forward_unit) / (np.linalg.norm(direction))))
+            print("rx: ", rz)
+            cam_rot = np.array([90, 0, rz])
+            left_cam_points_ws[step_count] = left_cam_loc_ws
+            right_cam_points_ws[step_count] = right_cam_loc_ws
+            blender_cam_rotation_ws[step_count] = cam_rot
+            render_points[step_count] = point
+            step_count += 1
+  
     return left_cam_points_ws, right_cam_points_ws, blender_cam_rotation_ws
     
         

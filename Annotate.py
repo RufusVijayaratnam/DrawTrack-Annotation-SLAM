@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import LoadTrack as lt
+from MatrixTools import *
 import cv2 as cv
 import os
 render_folder_d = "/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/Renders/"
@@ -42,24 +43,6 @@ class ImagePoints:
         self.yellow_points = self.swap_points(self.yellow_points)
 
     
-
-
-def gen_rotation_matrix(alpha, beta, gamma):
-    rz = np.matrix([[np.cos(gamma), -np.sin(gamma),  0],
-                    [np.sin(gamma),  np.cos(gamma),  0],
-                    [0,                          0,  1]])
-
-    ry = np.matrix([[np.cos(beta),  0, np.sin(beta)],
-                    [0,             1,             0],
-                    [-np.sin(beta), 0, np.cos(beta)]])
-
-
-    rx = np.matrix([[1,            0,               0],
-                    [0, np.cos(alpha), -np.sin(alpha)], 
-                    [0, np.sin(alpha), np.cos(alpha)]])
-
-    rotation_matrix = rz * ry * rx
-    return rotation_matrix
 
 def axis_transform(point):
     #https://stackoverflow.com/questions/29754538/rotate-object-from-one-coordinate-system-to-another
