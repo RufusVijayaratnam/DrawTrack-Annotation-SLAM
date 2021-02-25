@@ -188,7 +188,7 @@ def annotate_track(image_folder, track_folder, track_name):
         annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, image_folder, track_name)
 
 
-annotate_track(render_folder_d, track_folder_d, "track1")
+annotate_track(render_folder_d, track_folder_d, "track2")
 
 
 
