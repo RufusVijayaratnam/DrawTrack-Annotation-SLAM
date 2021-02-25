@@ -62,25 +62,37 @@ def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.5):
     step_count = 0
     up_unit_vec = [0, 0, 1]
     forward_unit = np.array([0, -1, 0])
-    for i in range(2):
+    for i in range(len(track_points_ws) - 1):
         p1 = track_points_ws[i + 1]
         p0 = track_points_ws[i]
-        total_turn_angle_rad = np.arccos(np.dot(d1, d0)) #About Z blender space
-        print("turn angle is %f degrees" % np.rad2deg(total_turn_angle_rad))
-        step_turn_angle_rad = total_turn_angle_rad / substeps
+        #print("p0: \n", p0)
+        #print("p1: \n", p1)
         vec = np.subtract(p1, p0)
         step_vec = vec / substeps
         for j in range(substeps):
             point = p0 + step_vec * j
-            cam_chord = np.cross(up_unit_vec, direction)
+            #print("point: \n", point)
+            direction = np.subtract(p1, point)
+            direction = direction / np.linalg.norm(direction)
+            cam_chord = np.cross(direction, up_unit_vec)
+            print("directin: \n", direction)
+            cam_chord = cam_chord / np.linalg.norm(cam_chord)
+            #print("cam chord: \n", cam_chord)
             right_cam_loc_ws = point - 0.5 * cam_spacing * cam_chord 
             right_cam_loc_ws[2] = 0.5
             left_cam_loc_ws = point + 0.5 * cam_spacing * cam_chord
             left_cam_loc_ws[2] = 0.5
-            rz = 180 - np.rad2deg(np.arccos(np.dot(direction, forward_unit) / (np.linalg.norm(direction))))
-            print("rx: ", rz)
+            #rz is counter clockwise rotation about the blender z axis from forward unit vector
+            #as defined above "forward_unit". viewed with direction vector = [0, 0, -1]
+            #Cross product method is used to obtained signed angle
+            rz_rad = signed_angle_between_2d_vec(direction, forward_unit)
+            rz_deg = np.rad2deg(rz_rad)
+            rz = 180 - rz_deg
+            print("rz: ", rz)
             cam_rot = np.array([90, 0, rz])
             left_cam_points_ws[step_count] = left_cam_loc_ws
+            #print("left: \n", left_cam_loc_ws)
+            #print("right: \n", right_cam_loc_ws)
             right_cam_points_ws[step_count] = right_cam_loc_ws
             blender_cam_rotation_ws[step_count] = cam_rot
             render_points[step_count] = point

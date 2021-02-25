@@ -16,3 +16,9 @@ def gen_rotation_matrix(alpha, beta, gamma):
 
     rotation_matrix = rz * ry * rx
     return rotation_matrix
+
+def signed_angle_between_2d_vec(vec1, vec2):
+    dot = np.dot(vec1, vec2)
+    det = vec1[0] * vec2[1] - vec1[1] * vec2[0]
+    angle = np.arctan2(det, dot)
+    return angle
