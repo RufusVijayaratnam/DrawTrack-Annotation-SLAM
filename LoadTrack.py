@@ -78,9 +78,9 @@ def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.5):
             print("directin: \n", direction)
             cam_chord = cam_chord / np.linalg.norm(cam_chord)
             #print("cam chord: \n", cam_chord)
-            right_cam_loc_ws = point - 0.5 * cam_spacing * cam_chord 
+            right_cam_loc_ws = point + 0.5 * cam_spacing * cam_chord 
             right_cam_loc_ws[2] = 0.5
-            left_cam_loc_ws = point + 0.5 * cam_spacing * cam_chord
+            left_cam_loc_ws = point - 0.5 * cam_spacing * cam_chord
             left_cam_loc_ws[2] = 0.5
             #rz is counter clockwise rotation about the blender z axis from forward unit vector
             #as defined above "forward_unit". viewed with direction vector = [0, 0, -1]

@@ -37,6 +37,7 @@ class ImagePoints:
         yellow_points_cleaned = np.asarray([point for point in self.yellow_points if self.on_screen(point[0]) and self.on_screen(point[1])])
         self.blue_points = np.array(blue_points_cleaned)
         self.yellow_points = np.array(yellow_points_cleaned)
+        #Should get rid of this and make a better way of casting to int
         self.blue_points = self.swap_points(self.blue_points)
         self.yellow_points = self.swap_points(self.yellow_points)
         self.blue_points = self.swap_points(self.blue_points)
@@ -45,8 +46,7 @@ class ImagePoints:
     
 
 def axis_transform(point):
-    #https://stackoverflow.com/questions/29754538/rotate-object-from-one-coordinate-system-to-another
-    #OpenCV basis in blender coordinate system
+    #OpenCV cardinal vectors in blender coordinate system
     cv_z = np.matrix([0, -1, 0]).transpose()
     cv_x = np.matrix([-1, 0, 0]).transpose()
     cv_y = np.matrix([0, 0, -1]).transpose()
@@ -94,8 +94,7 @@ def cone_annotation_bounds(cam_loc_ws, cone_loc_ws, intrinsic_matrix, rotation_m
 
     return ((u1, v1), (u2, v2))
 
-def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, im_folder, track_name, res_x=1920, res_y=1080):
-    #print("image is: ", render)
+def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, im_folder, track_name, file, res_x=1920, res_y=1080):
     img_points = ImagePoints(len(blue_cone_ws), res_x, res_y)
     num_cones = len(blue_cone_ws)
 
@@ -113,50 +112,55 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
                                 [0, 0, 1]])
 
     cam_direction_unit = rotation_matrix.T * np.matrix(cam_initial_direction).transpose()
-    print("Cam diretion: \n", cam_direction_unit)
     for i, (blue_cone, yellow_cone) in enumerate(zip(blue_cone_ws, yellow_cone_ws)):
-        #print("blue cone location is: ", blue_cone)
         blue_point = cone_annotation_bounds(cam_loc_ws, blue_cone, intrinsic_matrix, rotation_matrix)
         yellow_point = cone_annotation_bounds(cam_loc_ws, yellow_cone, intrinsic_matrix, rotation_matrix)
         img_points.blue_points[i] = blue_point
         img_points.yellow_points[i] = yellow_point
 
-    #print("Before cleaning lenth is %i" % len(img_points.blue_points))
     img_points.clean()
-    #print("After cleaning lenth is %i" % len(img_points.blue_points))
-    print("For %s found %i blue cones, and %i yellow cones" % (render, len(img_points.blue_points), len(img_points.yellow_points)))
-    print("Rotation ws: %f" % (cam_rotation[2] - 180))
-    active_image = cv.imread(im_folder + track_name + "/" + render)
-    #print("size of image: ", np.shape(active_image))
+    print("Annotating: %s" % (render))
+    file_path = im_folder + "%s/Annotated/" % track_name + render
+    active_image = cv.imread(im_folder + track_name + "/img/" + render)
+
+    total_cones = len(img_points.blue_points) + len(img_points.yellow_points)
+    if total_cones == 0:
+        file.write("0")
+        return
+
+    file.write("%i  " % total_cones) #Double space
+
     for rects in img_points.blue_points:
         p1 = rects[0]
         p2 = rects[1]
+        file.write("%i %i %i %i   " %(p1[0], p1[1], p2[0], p2[1]))
         cv.rectangle(active_image, p1, p2, (255, 255, 0))
         
     
     for rects in img_points.yellow_points:
         p1 = rects[0]
         p2 = rects[1]
+        file.write("%i %i %i %i   " %(p1[0], p1[1], p2[0], p2[1]))
         cv.rectangle(active_image, p1, p2, (255, 0, 0))
         
-    file_path = im_folder + "%s-Annotated/" % track_name + render
     cv.imwrite(file_path, active_image)
+    
         
-    return 0
+    return
 
 def annotate_track(image_folder, track_folder, track_name):
     file_path = track_folder + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
-    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path)
+    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=4)
     blue_cone_ws = [axis_transform(point) for point in blue_cone_ws]
     yellow_cone_ws = [axis_transform(point) for point in yellow_cone_ws]
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
     right_cam_points_ws = [axis_transform(point) for point in right_cam_points_ws]
 
     naming_pattern = "%s-R%i.png"
-    renders = os.listdir(image_folder + track_name)
+    renders = os.listdir(image_folder + track_name + "/img/")
 
-    imgWidth = cv.imread(image_folder + track_name + "/" + renders[0]).shape[1]
+    imgWidth = cv.imread(image_folder + track_name + "/img/" + renders[0]).shape[1]
 
     focalLength_mm = 50 #Should use more realistic values
     sensorWidth_mm = 36
@@ -164,7 +168,8 @@ def annotate_track(image_folder, track_folder, track_name):
     focalLength_pixels = (focalLength_mm / sensorWidth_mm) * imgWidth
     fx = focalLength_pixels
     fy = fx
-    path = image_folder + "%s-Annotated" % track_name
+    path = image_folder + "%s/Annotated/" % track_name
+    f = open(image_folder + track_name + "/info.dat", "w+")
 
     try:
         os.mkdir(path)
@@ -174,6 +179,7 @@ def annotate_track(image_folder, track_folder, track_name):
         print ("Successfully created the directory %s " % path)
     for i in range(len(renders)):
         render = renders[i]
+        f.write("img/%s  " % render)
         left = "Left_Cam"
         right = "Right_Cam"
         cam_info = render.split("-R") #cam_info[0] = left / right, cam_info[1] = cam index
@@ -185,10 +191,13 @@ def annotate_track(image_folder, track_folder, track_name):
             cam_loc_ws = right_cam_points_ws[cam_indx]
 
         cam_rotation = cam_rotation_ws[cam_indx]
-        annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, image_folder, track_name)
+        annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, image_folder, track_name, f)
+        f.write("\n")
+
+    f.close()
 
 
-annotate_track(render_folder_d, track_folder_d, "track2")
+annotate_track(render_folder_d, track_folder_d, "track1")
 
 
 
