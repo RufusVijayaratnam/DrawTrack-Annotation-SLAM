@@ -120,8 +120,13 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
 
     img_points.clean()
     print("Annotating: %s" % (render))
-    file_path = im_folder + "%s/Annotated/" % track_name + render
+    file_path = im_folder + "%s/Annotated/images/" % track_name + "%s-%s" % (track_name, render.replace(".png", ".jpg"))
     active_image = cv.imread(im_folder + track_name + "/img/" + render)
+    im_width = np.shape(active_image)[1]
+    im_height = np.shape(active_image)[0]
+    anno_name = render.replace(".png", ".txt")
+
+    f_yolo = open(im_folder + "%s/Annotated/labels/" % track_name + "%s-%s" % (track_name, anno_name), "w+")
 
     total_cones = len(img_points.blue_points) + len(img_points.yellow_points)
     if total_cones == 0:
@@ -129,29 +134,45 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         return
 
     file.write("%i  " % total_cones) #Double space
-
+    count = 0
     for rects in img_points.blue_points:
         p1 = rects[0]
         p2 = rects[1]
-        file.write("%i %i %i %i   " %(p1[0], p1[1], p2[0], p2[1]))
+        #For Haar Cascade
+        file.write("%i %i %i %i   " %(p1[0], p1[1], p2[0], p2[1])) 
+        #For Yolo:
+        height = float(abs(p2[1] - p1[1]) / im_height)
+        width = float(abs(p2[0] - p1[0])  / im_width)
+        x = float((p1[0] + p2[0]) / 2) / im_width
+        y = float((p1[1] + p2[1]) / 2) / im_height
+        yolo_string = "0 %f %f %f %f\n" % (x, y, width, height)
+        f_yolo.write(yolo_string)
         cv.rectangle(active_image, p1, p2, (255, 255, 0))
         
     
     for rects in img_points.yellow_points:
         p1 = rects[0]
         p2 = rects[1]
+        #For Haar Cascade
         file.write("%i %i %i %i   " %(p1[0], p1[1], p2[0], p2[1]))
+        #For Yolo:
+        height = float(abs(p2[1] - p1[1]) / im_height)
+        width = float(abs(p2[0] - p1[0])  / im_width)
+        x = float((p1[0] + p2[0]) / 2) / im_width
+        y = float((p1[1] + p2[1]) / 2) / im_height
+        yolo_string = "0 %f %f %f %f\n" % (x, y, width, height)
+        f_yolo.write(yolo_string)
         cv.rectangle(active_image, p1, p2, (255, 0, 0))
         
     cv.imwrite(file_path, active_image)
-    
+    f_yolo.close()
         
     return
 
 def annotate_track(image_folder, track_folder, track_name):
     file_path = track_folder + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
-    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=4)
+    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=2)
     blue_cone_ws = [axis_transform(point) for point in blue_cone_ws]
     yellow_cone_ws = [axis_transform(point) for point in yellow_cone_ws]
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
@@ -197,7 +218,7 @@ def annotate_track(image_folder, track_folder, track_name):
     f.close()
 
 
-annotate_track(render_folder_d, track_folder_d, "track1")
+annotate_track(render_folder_d, track_folder_d, "track2")
 
 
 
