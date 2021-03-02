@@ -4,11 +4,9 @@ import LoadTrack as lt
 from MatrixTools import *
 import cv2 as cv
 import os
-render_folder_d = "/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/Renders/"
-track_folder_d = "/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/Tracks/"
 
-cone_height_m = 0.3
-cone_widht_m = 0.2
+cone_height_m = 0.262
+cone_widht_m = 0.324
 up_vec = np.array([0, -1, 0]) #CV
 cam_initial_direction = np.array([0, 0, 1]) #CV
 
@@ -94,7 +92,8 @@ def cone_annotation_bounds(cam_loc_ws, cone_loc_ws, intrinsic_matrix, rotation_m
 
     return ((u1, v1), (u2, v2))
 
-def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, im_folder, track_name, file, res_x=1920, res_y=1080):
+def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, resource_folder, track_name, file, res_x=1920, res_y=1080):
+    sep = os.sep
     img_points = ImagePoints(len(blue_cone_ws), res_x, res_y)
     num_cones = len(blue_cone_ws)
 
@@ -120,13 +119,15 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
 
     img_points.clean()
     print("Annotating: %s" % (render))
-    file_path = im_folder + "%s/Annotated/images/" % track_name + "%s-%s" % (track_name, render.replace(".png", ".jpg"))
-    active_image = cv.imread(im_folder + track_name + "/img/" + render)
+    image_folder = "Renders" + sep + "images" + sep
+    labels_folder = "Renders" + sep + "labels" + sep
+    file_path = resource_folder + image_folder + "Annotated" + sep + "%s" % (render.replace(".png", ".jpg"))
+    active_image = cv.imread(resource_folder + image_folder + render)
     im_width = np.shape(active_image)[1]
     im_height = np.shape(active_image)[0]
     anno_name = render.replace(".png", ".txt")
 
-    f_yolo = open(im_folder + "%s/Annotated/labels/" % track_name + "%s-%s" % (track_name, anno_name), "w+")
+    f_yolo = open(resource_folder + labels_folder + "%s" % (anno_name), "w+")
 
     total_cones = len(img_points.blue_points) + len(img_points.yellow_points)
     if total_cones == 0:
@@ -169,19 +170,24 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         
     return
 
-def annotate_track(image_folder, track_folder, track_name):
-    file_path = track_folder + track_name + ".txt"
+def annotate_track(resource_folder, track_name, substeps):
+    sep = os.sep
+    file_path = resource_folder + "Tracks" + sep + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
-    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=2)
+    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=substeps)
     blue_cone_ws = [axis_transform(point) for point in blue_cone_ws]
     yellow_cone_ws = [axis_transform(point) for point in yellow_cone_ws]
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
     right_cam_points_ws = [axis_transform(point) for point in right_cam_points_ws]
 
+    images_folder = "Renders" + sep + "images" + sep
+    labels_folder = "Renders" + sep + "labels" + sep
     naming_pattern = "%s-R%i.png"
-    renders = os.listdir(image_folder + track_name + "/img/")
+    renders = os.listdir(resource_folder + images_folder)
+    renders = renders[1:]
+    renders = [render for render in renders if "%s-" % track_name in render]
 
-    imgWidth = cv.imread(image_folder + track_name + "/img/" + renders[0]).shape[1]
+    imgWidth = cv.imread(resource_folder + images_folder + renders[0]).shape[1]
 
     focalLength_mm = 50 #Should use more realistic values
     sensorWidth_mm = 36
@@ -189,21 +195,16 @@ def annotate_track(image_folder, track_folder, track_name):
     focalLength_pixels = (focalLength_mm / sensorWidth_mm) * imgWidth
     fx = focalLength_pixels
     fy = fx
-    path = image_folder + "%s/Annotated/" % track_name
-    f = open(image_folder + track_name + "/info.dat", "w+")
 
-    try:
-        os.mkdir(path)
-    except OSError:
-        print ("Creation of the directory %s failed" % path)
-    else:
-        print ("Successfully created the directory %s " % path)
+    f = open(resource_folder + labels_folder + "%s-info.dat" % track_name, "w+")
+
+
     for i in range(len(renders)):
         render = renders[i]
-        f.write("img/%s  " % render)
+        f.write(resource_folder + images_folder + resource_folder + "  ")
         left = "Left_Cam"
         right = "Right_Cam"
-        cam_info = render.split("-R") #cam_info[0] = left / right, cam_info[1] = cam index
+        cam_info = render.split("-Render-") #cam_info[0] = left / right, cam_info[1] = cam index
         cam = cam_info[0]
         cam_indx = int(cam_info[1].replace(".png", ""))
         if cam == left:
@@ -212,13 +213,11 @@ def annotate_track(image_folder, track_folder, track_name):
             cam_loc_ws = right_cam_points_ws[cam_indx]
 
         cam_rotation = cam_rotation_ws[cam_indx]
-        annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, image_folder, track_name, f)
+        annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, resource_folder, track_name, f)
         f.write("\n")
 
     f.close()
 
-
-annotate_track(render_folder_d, track_folder_d, "track2")
 
 
 
