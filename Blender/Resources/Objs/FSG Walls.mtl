@@ -1,0 +1,13 @@
+# Blender MTL File: 'Walls.blend'
+# Material Count: 1
+
+newmtl Material.002
+Ns 185.483550
+Ka 1.000000 1.000000 1.000000
+Kd 0.733426 0.749753 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 0.000000
+d 1.000000
+illum 2
+map_Kd C:\\Users\\Rufus Vijayaratnam\\Documents\\University\\Year 3\\IP\\Blender\\Resources\\Textures\\FSG Letters.png
