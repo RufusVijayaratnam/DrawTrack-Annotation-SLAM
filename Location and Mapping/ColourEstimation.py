@@ -2,16 +2,10 @@ import numpy as np
 import cv2 as cv
 import os
 
-annotation_file_paths = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/detect/exp2/labels/"
+#l_path = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/detect/exp2/labels/"
+#im_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/train/images/track5-Right_Cam-Render-16.png"
 
-label_files = os.listdir(annotation_file_paths)
 
-image = cv.imread("/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/train/images/track5-Right_Cam-Render-16.png")
-size_x = np.shape(image)[1]
-size_y = np.shape(image)[0]
-f = open(annotation_file_paths + label_files[0], "r")
-#YOLO format: <class> <x_center / res x> <y_center / res y> <width / res x> <height / res y>
-bounding_boxes_string = f.readlines()
 
 blue_lower=np.array([100,100,100],np.uint8)
 blue_upper=np.array([140,255,255],np.uint8)
@@ -24,20 +18,6 @@ yellow = (0, 255, 255)
 ambiguous = (0, 0, 255)
 none = (0, 0, 0)
 
-def yolo_annotation_to_pixel(boxes, res_x, res_y):
-    pixel_bounds = np.ndarray(len(boxes), dtype=(tuple, 2))
-    for i, box in enumerate(boxes):
-        data = [float(val) for val in box.split()]
-        data = data[1:]
-        width = data[2] * res_x
-        height = data[3] * res_y
-        x1 = int(data[0] * res_x - width / 2)
-        y1 = int(data[1] * res_y - height / 2)
-        x2 = int(data[0] * res_x + width / 2)
-        y2 = int(data[1] * res_y + height / 2)
-        pixel_bounds[i] = ((x1, y1), (x2, y2))
-
-    return pixel_bounds
 
 def remove_noise(image):
     refinement_resolution = 5
@@ -90,35 +70,19 @@ def estimate_colour(image):
     elif np.logical_xor(found_yellow, found_blue):
         if found_blue:
             colour = blue
-            print("blue")
+
         else:
             colour = yellow
-            print("yellow")
+
     elif not np.logical_or(found_blue, found_yellow):
         colour = none #Just to test, can be removed later probably and replace with "ambiguous"
-        print("none")
+
     
     """ p1 = (stats[i][cv.CC_STAT_LEFT], stats[i][cv.CC_STAT_TOP])
     p2 = (stats[i][cv.CC_STAT_LEFT] + stats[i][cv.CC_STAT_WIDTH], stats[1][cv.CC_STAT_TOP] + stats[1][cv.CC_STAT_HEIGHT]) """
 
     return colour
         
-bounding_boxes = yolo_annotation_to_pixel(bounding_boxes_string, size_x, size_y)
-
-#for detected_cone in bounding_boxes:
-#detected_cone = bounding_boxes[3]
-
-for detected_cone in bounding_boxes:
-    x1 = detected_cone[0][0]
-    y1 = detected_cone[0][1]
-    x2 = detected_cone[1][0]
-    y2 = detected_cone[1][1]
-    print("detected cone:", detected_cone)
-    sub_image = image[y1:y2, x1:x2]
-    colour = estimate_colour(sub_image)
-    cv.rectangle(image, (x1, y1), (x2, y2), colour)
-
-cv.imshow("hi", image)
 
 """ white = np.ndarray(sub_image.shape, dtype=np.uint8)
 white[:] = (255, 255, 255)
@@ -131,7 +95,25 @@ image[y1:y2, x1:x2] = final
 cv.imshow("hi", image) """
 
     
-
-
-cv.waitKey(0)
-cv.destroyAllWindows()
+def estimate_cone_colours(image, detection_tensor):
+    size_x = np.shape(image)[1]
+    size_y = np.shape(image)[0]
+    """  f = open(annotation_file_paths + label_files[0], "r")
+    #YOLO format: <class> <x_center / res x> <y_center / res y> <width / res x> <height / res y>
+    bounding_boxes_string = f.readlines()
+    
+    bounding_boxes = yolo_annotation_to_pixel(bounding_boxes_string, size_x, size_y) """
+    print("this ran")
+    print("image type is ", type(image))
+    for detected_cone in detection_tensor:
+        x1 = int(detected_cone[0])
+        y1 = int(detected_cone[1])
+        x2 = int(detected_cone[2])
+        y2 = int(detected_cone[3])
+        sub_image = image[y1:y2, x1:x2]
+        colour = estimate_colour(sub_image)
+        cv.rectangle(image, (x1, y1), (x2, y2), colour)
+    
+    cv.imshow("cones", image)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
