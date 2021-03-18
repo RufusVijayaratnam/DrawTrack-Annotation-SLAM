@@ -1,19 +1,12 @@
 import numpy as np
 import cv2 as cv
 import os
+from Colour import *
 
 #l_path = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/detect/exp2/labels/"
 #im_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/train/images/track5-Right_Cam-Render-16.png"
 
 
-
-blue_lower=np.array([100,100,100],np.uint8)
-blue_upper=np.array([140,255,255],np.uint8)
-blue = (255, 0, 0)
-
-yellow_lower = np.array([20, 100, 100])
-yellow_upper = np.array([30, 255, 255])
-yellow = (0, 255, 255)
 
 ambiguous = (0, 0, 255)
 none = (0, 0, 0)
@@ -59,8 +52,8 @@ def test_cone_colour(mask):
 
 def estimate_colour(image):
     hsv_image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-    blue_mask = cv.inRange(hsv_image, blue_lower, blue_upper)
-    yellow_mask = cv.inRange(hsv_image, yellow_lower, yellow_upper)
+    blue_mask = cv.inRange(hsv_image, blue.lower, blue.upper)
+    yellow_mask = cv.inRange(hsv_image, yellow.lower, yellow.upper)
     found_blue = test_cone_colour(blue_mask)
     found_yellow = test_cone_colour(yellow_mask)
 
@@ -70,7 +63,6 @@ def estimate_colour(image):
     elif np.logical_xor(found_yellow, found_blue):
         if found_blue:
             colour = blue
-
         else:
             colour = yellow
 
@@ -105,15 +97,19 @@ def estimate_cone_colours(image, detection_tensor):
     bounding_boxes = yolo_annotation_to_pixel(bounding_boxes_string, size_x, size_y) """
     print("this ran")
     print("image type is ", type(image))
-    for detected_cone in detection_tensor:
+    ce_results = np.ndarray((len(detection_tensor), 4))
+    #ce_results = [cx, cy, hypotenues, colour_id]
+    for i, detected_cone in enumerate(detection_tensor):
         x1 = int(detected_cone[0])
         y1 = int(detected_cone[1])
         x2 = int(detected_cone[2])
         y2 = int(detected_cone[3])
+        
         sub_image = image[y1:y2, x1:x2]
         colour = estimate_colour(sub_image)
-        cv.rectangle(image, (x1, y1), (x2, y2), colour)
+        cv.rectangle(image, (x1, y1), (x2, y2), colour.colour)
     
     cv.imshow("cones", image)
     cv.waitKey(0)
     cv.destroyAllWindows()
+    return ce_results
