@@ -64,9 +64,6 @@ class Matcher():
         self.__find_match(train_yellow, query_yellow)
 
         return self.matches
-        
-
-
 
 
 def find_stereo_depth(query_im, train_im):

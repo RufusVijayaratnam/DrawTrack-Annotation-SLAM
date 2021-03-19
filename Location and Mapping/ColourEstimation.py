@@ -63,12 +63,13 @@ def estimate_colour(image):
     elif np.logical_xor(found_yellow, found_blue):
         if found_blue:
             colour = blue
+            print("blue")
         else:
             colour = yellow
-
+            print("yellow")
     elif not np.logical_or(found_blue, found_yellow):
         colour = none #Just to test, can be removed later probably and replace with "ambiguous"
-
+        print("none")
     
     """ p1 = (stats[i][cv.CC_STAT_LEFT], stats[i][cv.CC_STAT_TOP])
     p2 = (stats[i][cv.CC_STAT_LEFT] + stats[i][cv.CC_STAT_WIDTH], stats[1][cv.CC_STAT_TOP] + stats[1][cv.CC_STAT_HEIGHT]) """
@@ -90,11 +91,6 @@ cv.imshow("hi", image) """
 def estimate_cone_colours(image, detection_tensor):
     size_x = np.shape(image)[1]
     size_y = np.shape(image)[0]
-    """  f = open(annotation_file_paths + label_files[0], "r")
-    #YOLO format: <class> <x_center / res x> <y_center / res y> <width / res x> <height / res y>
-    bounding_boxes_string = f.readlines()
-    
-    bounding_boxes = yolo_annotation_to_pixel(bounding_boxes_string, size_x, size_y) """
     print("this ran")
     print("image type is ", type(image))
     ce_results = np.ndarray((len(detection_tensor), 4))
