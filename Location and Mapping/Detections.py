@@ -8,6 +8,7 @@ import cv2 as cv
 
 class DetectedCone():
     #This holds attributes to describe a detected cone
+    #This class does not have image context
     def __init__(self, cx, cy, w, h):
         self.cx = cx
         self.cy = cy
@@ -19,6 +20,7 @@ class DetectedCone():
         self.im_width = 0
         #Unique identifier used for easier index matching
         self.uid = hash("%s%s%s" % (self.colour.name, str(cx), str(cy)))
+        self.depth = None
 
     def find_center_distance(self, cone):
         #Returns pixel distance between self and center of another cone
@@ -50,6 +52,14 @@ class DetectedCone():
         disp_max = baseline_mm * focalLength_pixels / depth_min_mm
         return depth, np.floor(disp_min), np.ceil(disp_max)
 
+    def get_sub_image(self, image):
+       x1 = int(self.cx - self.w / 2)
+       y1 = int(self.cy - self.h / 2)
+       x2 = int(self.cx + self.w / 2)
+       y2 = int(self.cy + self.h / 2)
+       sub_image = image[y1:y2, x1:x2]
+       return sub_image
+
 
 class Detections(np.ndarray):
     def __new__(cls, detections_array, image, max_dist=2):
@@ -76,17 +86,17 @@ class Detections(np.ndarray):
         out_of_range_idx = np.where(in_range_idx == False)[0]
         return np.delete(self, out_of_range_idx)
 
-    def __get_sub_image(self, cone):
+    """ def get_sub_image(self, cone):
         x1 = int(cone.cx - cone.w / 2)
         y1 = int(cone.cy - cone.h / 2)
         x2 = int(cone.cx + cone.w / 2)
         y2 = int(cone.cy + cone.h / 2)
         sub_image = self.image[y1:y2, x1:x2]
-        return sub_image
+        return sub_image """
 
     def colour_estimation(self):
         for i, cone in enumerate(self):
-            sub_image = self.__get_sub_image(cone)
+            sub_image = cone.get_sub_image(self.image)
             self[i].colour = ce.estimate_colour(sub_image)
 
     def show_annotated_image(self):
