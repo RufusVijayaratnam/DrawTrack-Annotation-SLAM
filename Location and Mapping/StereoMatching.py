@@ -11,56 +11,16 @@ class Matcher():
         self.query = query
         self.matches = []
 
-    def __in_range(self, test, lower, upper):
+    def in_range(self, test, lower, upper):
         if test <= upper and test >= lower:
             return True
         else:
             return False
 
-    def __match_hash(self, hash, array):
+    def match_hash(self, hash, array):
         hashes = np.array([q.uid for q in array])
         index = np.where(hashes == hash)[0][0]
         return index
-
-    def __find_match(self, train, query_original):
-        for i, t in enumerate(train):
-            query = query_original
-            tcx = t.cx
-            tcy = t.cy
-            hash = t.uid
-            _, disp_lower, disp_upper = t.monocular_distance_estimate()
-            dists = np.array([abs(q.cx - tcx) for q in query])
-            in_range = np.array([self.__in_range(d, disp_lower, disp_upper) for d in dists])
-            out_range = np.where(in_range == False)
-            query = np.delete(query, out_range)
-            train_index = self.__match_hash(hash, self.train)
-            if len(query) != 0:
-                cy_dists = np.array([abs(q.cy - tcy) for q in query])
-                min_cy_dist = np.min(cy_dists)
-                match_idx = np.where(cy_dists == min_cy_dist)[0][0]
-                match_hash = query[match_idx].uid
-                query_index = self.__match_hash(match_hash, self.query)
-                self.matches.append((train_index, query_index))
-            else:
-                self.matches.append((train_index, -1))
-
-        return 0
-
-    def find_stereo_matches(self):
-        colours = np.array([c.colour.name for c in self.query])
-        not_yellow_indices = np.where(colours != "yellow")
-        not_blue_indices = np.where(colours != "blue")
-        query_yellow = np.delete(self.query, not_yellow_indices)
-        query_blue = np.delete(self.query, not_blue_indices)
-
-        colours = np.array([c.colour.name for c in self.train])
-        not_yellow_indices = np.where(colours != "yellow")
-        not_blue_indices = np.where(colours != "blue")
-        train_yellow = np.delete(self.train, not_yellow_indices)
-        train_blue = np.delete(self.train, not_blue_indices)
-
-        self.__find_match(train_blue, query_blue)
-        self.__find_match(train_yellow, query_yellow)
 
     def __match_keypoints(self, train_im, query_im):
         print("Attempting to find matching points")
@@ -104,7 +64,7 @@ class Matcher():
 
         return depths
 
-    def __center_depth(self, cx1, cx2):
+    def center_depth(self, cx1, cx2):
         disparity = abs(cx1 - cx2)
         focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.train[0].im_width
         depth = baseline_mm * focalLength_pixels / disparity
@@ -122,6 +82,57 @@ class Matcher():
         query_located = Detections(query_matched, self.query.image)
         return train_located, query_located
 
+        print("depths", depths)
+        no_matches = np.where(depths == -1)
+        if len(no_matches) != 0:
+            for val in no_matches[0]:
+                del self.matches[val]
+        depths = np.delete(depths, no_matches)
+            
+
+class StereoMatcher(Matcher):
+    def __init__(self, train, query):
+        super().__init__(train, query)
+
+    def __find_match(self, train, query_original):
+        for i, t in enumerate(train):
+            query = query_original
+            tcx = t.cx
+            tcy = t.cy
+            hash = t.uid
+            _, disp_lower, disp_upper = t.monocular_distance_estimate()
+            dists = np.array([abs(q.cx - tcx) for q in query])
+            in_range = np.array([self.in_range(d, disp_lower, disp_upper) for d in dists])
+            out_range = np.where(in_range == False)
+            query = np.delete(query, out_range)
+            train_index = self.match_hash(hash, self.train)
+
+            if len(query) != 0:
+                cy_dists = np.array([abs(q.cy - tcy) for q in query])
+                min_cy_dist = np.min(cy_dists)
+                match_idx = np.where(cy_dists == min_cy_dist)[0][0]
+                match_hash = query[match_idx].uid
+                query_index = self.match_hash(match_hash, self.query)
+                self.matches.append((train_index, query_index))
+            else:
+                self.matches.append((train_index, -1))
+        
+    def find_stereo_matches(self):
+        colours = np.array([c.colour.name for c in self.query])
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        query_yellow = np.delete(self.query, not_yellow_indices)
+        query_blue = np.delete(self.query, not_blue_indices)
+
+        colours = np.array([c.colour.name for c in self.train])
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        train_yellow = np.delete(self.train, not_yellow_indices)
+        train_blue = np.delete(self.train, not_blue_indices)
+
+        self.__find_match(train_blue, query_blue)
+        self.__find_match(train_yellow, query_yellow)
+
     def calculate_depth(self):
         depths = np.ndarray(len(self.matches))
         print("what up dog")
@@ -137,40 +148,9 @@ class Matcher():
                 point_matches.append(self.__match_keypoints(train_sub_im, query_sub_im)) """
                 cx_train = self.train[train_idx].cx
                 cx_query = self.query[query_idx].cx
-                depth = self.__center_depth(cx_train, cx_query)
+                depth = self.center_depth(cx_train, cx_query)
                 self.train[train_idx].depth = depth
                 self.query[query_idx].depth = depth
                 depths[i] = depth
             else:
                 depths[i] = -1
-
-        
-        print("depths", depths)
-        no_matches = np.where(depths == -1)
-        if len(no_matches) != 0:
-            for val in no_matches[0]:
-                del self.matches[val]
-        depths = np.delete(depths, no_matches)
-            
-
-                
-
-
-""" if train_idx != -1 and query_idx != -1:
-        x1 = int(train_sub_im.cx - train_sub_im.w / 2)
-        y1 = int(train_sub_im.cy - train_sub_im.h / 2)
-        x2 = int(train_sub_im.cx + train_sub_im.h / 2)
-        cv.rectangle(train_im, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
-        print(x1, y1, x2, y2)+ train_sub_im.w / 2)
-        y2 = int(train_sub_im.cy 
-        x1 = int(query_sub_im.cx - query_sub_im.w / 2)
-        y1 = int(query_sub_im.cy - query_sub_im.h / 2)
-        x2 = int(query_sub_im.cx + query_sub_im.w / 2)
-        y2 = int(query_sub_im.cy + query_sub_im.h / 2)
-        print(x1, y1, x2, y2)
-        cv.rectangle(query_im, (x1, y1), (x2, y2), (0, 255, 255), thickness=2)
-
-        cv.imshow("train", train_im)
-        cv.imshow("query", query_im)
-        cv.waitKey(0)
-        cv.destroyAllWindows() """
