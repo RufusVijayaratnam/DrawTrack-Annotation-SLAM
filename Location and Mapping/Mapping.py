@@ -4,6 +4,7 @@ from StereoMatching import Matcher
 from Colour import Colour
 import Constants as consts
 import cv2 as cv
+import torch
 
 class Point():
     def __init__(self, x, y, z):
@@ -21,7 +22,25 @@ class Mapper():
         
         cv.circle(self.blank_image, (int(self.im_size / 2), int(self.im_size - 20)), 5, (0, 255, 0))
 
-    def visualise_local_map(self):
+    def begin(self):
+        #Begin camera and capture frames
+
+
+    def show_local_map(self):
+        for cone in self.new_cones:
+            x_cs = cone.loc_cs.x
+            im_y = int(self.im_size - cone.depth / 20 * (self.im_size - 20))
+            im_x = int(self.im_size / 2 + x_cs / 10 * self.im_size)
+            cv.circle(self.blank_image, (im_x, im_y), 4, cone.colour.colour, thickness=-1)
+
+        cv.imshow("Local Map", self.blank_image)
+        cv.waitKey(0)
+        cv.destroyWindow("Local Map")
+
+    def get_localised_cones(self):
+        return self.new_cones
+
+    def locate_cones(self):
         im_width = self.new_cones[0].im_width
         for i, cone in enumerate(self.new_cones):
             if cone.cx < im_width / 2:
@@ -34,10 +53,5 @@ class Mapper():
             #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, the origins are at the same point initially.
             point = Point(x_cs, 0, cone.depth)
             self.new_cones[i].loc_cs = point
-            im_y = int(self.im_size - cone.depth / 20 * (self.im_size - 20))
-            im_x = int(self.im_size / 2 + x_cs / 10 * self.im_size)
-            cv.circle(self.blank_image, (im_x, im_y), 4, cone.colour.colour, thickness=-1)
 
-        cv.imshow("visualisation", self.blank_image)
-        cv.waitKey(0)
-        cv.destroyWindow("visualisation")
+        

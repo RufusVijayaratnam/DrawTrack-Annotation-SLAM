@@ -9,7 +9,7 @@ cone_height_m = 0.262
 cone_widht_m = 0.324
 up_vec = np.array([0, -1, 0]) #CV
 cam_initial_direction = np.array([0, 0, 1]) #CV
-
+train_or_val = "train"
 
 
 class ImagePoints:
@@ -64,11 +64,11 @@ def cone_annotation_bounds(cam_loc_ws, cone_loc_ws, intrinsic_matrix, rotation_m
     cam_direction_unit = rotation_matrix.T * np.matrix(cam_initial_direction).transpose()
     cone_to_cam_vec = np.subtract(cone_loc_ws, cam_loc_ws)
     cone_to_cam_vec_unit = cone_to_cam_vec / np.linalg.norm(cone_to_cam_vec)    
-     
+   
 
     normal_unit = np.cross(up_vec, cam_direction_unit.transpose())
-    top_left_point = cone_loc_ws.transpose() + cone_height_m * up_vec + cone_widht_m / 2 * normal_unit + cone_widht_m / 2 * cone_to_cam_vec_unit
-    bottom_right_point = cone_loc_ws.transpose() - cone_widht_m / 2 * normal_unit - cone_widht_m / 2 * cone_to_cam_vec_unit
+    top_left_point = cone_loc_ws.transpose() + cone_height_m * up_vec + cone_widht_m / 2 * normal_unit + cone_widht_m / 2 * cone_to_cam_vec_unit.transpose()
+    bottom_right_point = cone_loc_ws.transpose() - cone_widht_m / 2 * normal_unit - cone_widht_m / 2 * cone_to_cam_vec_unit.transpose()
    
     p1_cs = np.subtract(top_left_point, cam_loc_ws.T).transpose()
     p2_cs = np.subtract(bottom_right_point, cam_loc_ws.T).transpose()
@@ -119,9 +119,9 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
 
     img_points.clean()
     print("Annotating: %s" % (render))
-    image_folder = "Renders" + sep + "images" + sep
-    labels_folder = "Renders" + sep + "labels" + sep
-    file_path = resource_folder + image_folder + "Annotated" + sep + "%s" % (render.replace(".png", ".jpg"))
+    image_folder = "Renders" + sep + train_or_val + sep + "images" + sep
+    labels_folder = "Renders" + sep + train_or_val + sep + "labels" + sep
+    file_path = resource_folder + "Renders" + sep + train_or_val + sep + "Annotated-images" + sep + "%s" % (render.replace(".png", ".jpg"))
     active_image = cv.imread(resource_folder + image_folder + render)
     im_width = np.shape(active_image)[1]
     im_height = np.shape(active_image)[0]
@@ -170,7 +170,9 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         
     return
 
-def annotate_track(resource_folder, track_name, substeps):
+def annotate_track(resource_folder, track_name, substeps, tov="train"):
+    global train_or_val
+    train_or_val = tov
     sep = os.sep
     file_path = resource_folder + "Tracks" + sep + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
@@ -180,21 +182,21 @@ def annotate_track(resource_folder, track_name, substeps):
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
     right_cam_points_ws = [axis_transform(point) for point in right_cam_points_ws]
 
-    images_folder = "Renders" + sep + "images" + sep
-    labels_folder = "Renders" + sep + "labels" + sep
+    images_folder = "Renders" + sep + train_or_val + sep + "images" + sep
+    labels_folder = "Renders" + sep + train_or_val + sep + "labels" + sep
     naming_pattern = "%s-R%i.png"
     renders = os.listdir(resource_folder + images_folder)
     renders = renders[1:]
     renders = [render for render in renders if "%s-" % track_name in render]
 
     imgWidth = cv.imread(resource_folder + images_folder + renders[0]).shape[1]
-
     focalLength_mm = 50 #Should use more realistic values
     sensorWidth_mm = 36
     sensorHeight_mm = 24
     focalLength_pixels = (focalLength_mm / sensorWidth_mm) * imgWidth
     fx = focalLength_pixels
     fy = fx
+
 
     f = open(resource_folder + labels_folder + "%s-info.dat" % track_name, "w+")
 
@@ -222,7 +224,6 @@ def annotate_track(resource_folder, track_name, substeps):
         
     f.close()
 
-annotate_track("/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/", "track1", substeps=1)
 
 
 

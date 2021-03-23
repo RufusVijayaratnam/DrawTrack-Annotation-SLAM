@@ -1,6 +1,6 @@
 import numpy as np
 import cv2 as cv
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 im_size = 800
 area_size_m = 80 #The area is a area_size_m x area_size_m area. Therefore each pixel represents im_size / area_size_m meters
@@ -9,8 +9,8 @@ blank_image[:] = (255, 255, 255)
 
 indicator_radius_px = 5 #radius of indicator size when clicking. 
 
-track_directory = "/mnt/c/Users/Rufus Vijayaratnam/Documents/University/Year 3/IP/Blender/Resources/Tracks/"
-track_name = "track4.txt"
+track_directory = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Tracks/"
+track_name = "track7.txt"
 
 #This is unencessary but I don't want to remove it because of the file reading.
 isClosed = False

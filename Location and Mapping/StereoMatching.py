@@ -132,8 +132,10 @@ class StereoMatcher(Matcher):
 
         self.__find_match(train_blue, query_blue)
         self.__find_match(train_yellow, query_yellow)
+        self.matches = np.array(self.matches, dtype=object)
 
     def calculate_depth(self):
+        self.matches = [val for val in self.matches if val[1] != -1]
         depths = np.ndarray(len(self.matches))
         print("what up dog")
         train_im = np.array(self.train.image)
@@ -141,16 +143,22 @@ class StereoMatcher(Matcher):
         for i, match in enumerate(self.matches):
             train_idx = match[0]
             query_idx = match[1]
-            if train_idx != -1 and query_idx != -1:
-            #if match != None:
-                """ train_sub_im = np.array(self.train[train_idx].get_sub_image(train_im))
-                query_sub_im = np.array(self.query[query_idx].get_sub_image(query_im))
-                point_matches.append(self.__match_keypoints(train_sub_im, query_sub_im)) """
-                cx_train = self.train[train_idx].cx
-                cx_query = self.query[query_idx].cx
-                depth = self.center_depth(cx_train, cx_query)
-                self.train[train_idx].depth = depth
-                self.query[query_idx].depth = depth
-                depths[i] = depth
-            else:
-                depths[i] = -1
+            cx_train = self.train[train_idx].cx
+            cx_query = self.query[query_idx].cx
+            depth = self.center_depth(cx_train, cx_query)
+            self.train[train_idx].depth = depth
+            self.query[query_idx].depth = depth
+            depths[i] = depth
+
+class FrameMatcher(Matcher):
+    def __init__(self, train, query):
+        #When this is called all cones should have depth and point information filled in.
+        super().__init__(train, query)
+
+    def find_subsequent_matches():
+        return 0
+
+
+        
+
+            
