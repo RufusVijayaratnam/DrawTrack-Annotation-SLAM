@@ -1,0 +1,24 @@
+annotated_test_rotated.png
+annotated_test_straight.png
+annotated_test.png
+matrixTest.py
+test_rotated.png
+test_straight.png
+test.png
+__pycache__/Annotate.cpython-38.pyc
+__pycache__/LoadTrack.cpython-37.pyc
+__pycache__/LoadTrack.cpython-38.pyc
+venv/
+__pycache__
+Blender/Resources/Renders/*
+Blender/Resources/Scripts/*
+Blender/Resources/Backups/*
+Location\ and\ Mapping/.vscode/*
+Location\ and\ Mapping/results/*
+Draw\ and\ Annotation/.vscode/*
+Blender/FSD\ Environment.blend11
+Blender/FSD\ Environment.blend1
+Blender/FSD\ Environment.blend
+Draw\ and\ Annotate/.vscode/*
+Location\ and\ Mapping/RefDistance.py
+Location\ and\ Mapping/5mRef.png
