@@ -2,7 +2,8 @@ import numpy as np
 import cv2 as cv
 import ColourEstimation as ce
 from Constants import *
-from Detections import *
+from Detections import DetectedCone, Detections
+from Colour import Colour
 
 class Matcher():
     def __init__(self, train, query):
@@ -47,16 +48,16 @@ class Matcher():
 
     def find_stereo_matches(self):
         colours = np.array([c.colour.name for c in self.query])
-        yellow_indices = np.where(colours != "yellow")
-        blue_indices = np.where(colours != "blue")
-        query_yellow = np.delete(self.query, blue_indices)
-        query_blue = np.delete(self.query, yellow_indices)
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        query_yellow = np.delete(self.query, not_yellow_indices)
+        query_blue = np.delete(self.query, not_blue_indices)
 
         colours = np.array([c.colour.name for c in self.train])
-        yellow_indices = np.where(colours != "yellow")
-        blue_indices = np.where(colours != "blue")
-        train_yellow = np.delete(self.train, blue_indices)
-        train_blue = np.delete(self.train, yellow_indices)
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        train_yellow = np.delete(self.train, not_yellow_indices)
+        train_blue = np.delete(self.train, not_blue_indices)
 
         self.__find_match(train_blue, query_blue)
         self.__find_match(train_yellow, query_yellow)
@@ -103,24 +104,54 @@ class Matcher():
 
         return depths
 
+    def __center_depth(self, cx1, cx2):
+        disparity = abs(cx1 - cx2)
+        focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.train[0].im_width
+        depth = baseline_mm * focalLength_pixels / disparity
+        return depth / 1000
+
     def __key_points_to_image_coords(self):
         #the matching function returns key points with their coords in the sub image
         #These must be transformed back into the original image coords
         return 0
 
+    def get_located(self):
+        train_matched = [self.train[val[0]] for val in self.matches]
+        query_matched = [self.query[val[1]] for val in self.matches]
+        train_located = Detections(train_matched, self.train.image)
+        query_located = Detections(query_matched, self.query.image)
+        return train_located, query_located
+
     def calculate_depth(self):
-        point_matches = []
+        depths = np.ndarray(len(self.matches))
         print("what up dog")
+        train_im = np.array(self.train.image)
+        query_im = np.array(self.query.image)
         for i, match in enumerate(self.matches):
-            train_im = np.array(self.train.image)
-            query_im = np.array(self.query.image)
             train_idx = match[0]
             query_idx = match[1]
             if train_idx != -1 and query_idx != -1:
-                train_sub_im = np.array(self.train[train_idx].get_sub_image(train_im))
+            #if match != None:
+                """ train_sub_im = np.array(self.train[train_idx].get_sub_image(train_im))
                 query_sub_im = np.array(self.query[query_idx].get_sub_image(query_im))
-                point_matches.append(self.__match_keypoints(train_sub_im, query_sub_im))
-        print(point_matches)
+                point_matches.append(self.__match_keypoints(train_sub_im, query_sub_im)) """
+                cx_train = self.train[train_idx].cx
+                cx_query = self.query[query_idx].cx
+                depth = self.__center_depth(cx_train, cx_query)
+                self.train[train_idx].depth = depth
+                self.query[query_idx].depth = depth
+                depths[i] = depth
+            else:
+                depths[i] = -1
+
+        
+        print("depths", depths)
+        no_matches = np.where(depths == -1)
+        if len(no_matches) != 0:
+            for val in no_matches[0]:
+                del self.matches[val]
+        depths = np.delete(depths, no_matches)
+            
 
                 
 
@@ -128,10 +159,10 @@ class Matcher():
 """ if train_idx != -1 and query_idx != -1:
         x1 = int(train_sub_im.cx - train_sub_im.w / 2)
         y1 = int(train_sub_im.cy - train_sub_im.h / 2)
-        x2 = int(train_sub_im.cx + train_sub_im.w / 2)
-        y2 = int(train_sub_im.cy + train_sub_im.h / 2)
+        x2 = int(train_sub_im.cx + train_sub_im.h / 2)
         cv.rectangle(train_im, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
-        print(x1, y1, x2, y2)
+        print(x1, y1, x2, y2)+ train_sub_im.w / 2)
+        y2 = int(train_sub_im.cy 
         x1 = int(query_sub_im.cx - query_sub_im.w / 2)
         y1 = int(query_sub_im.cy - query_sub_im.h / 2)
         x2 = int(query_sub_im.cx + query_sub_im.w / 2)

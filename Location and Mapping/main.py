@@ -4,13 +4,14 @@ import torch
 from Colour import *
 from Detections import *
 from StereoMatching import *
+from Mapping import Mapper
 
 yolov5_path = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/train/exp8/weights/best.pt"
 weights_path = yolov5_path + ""
 model = torch.hub.load("ultralytics/yolov5", "custom", path_or_model=weights_path)
 
-im_left = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Left_Cam-Render-16.png"
-im_right = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Right_Cam-Render-16.png"
+im_left = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Left_Cam-Render-40.png"
+im_right = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Right_Cam-Render-40.png"
 
 image_left = np.array(cv.imread(im_left))
 image_right = np.array(cv.imread(im_right))
@@ -49,5 +50,9 @@ rds.colour_estimation()
 
 stereo_matcher = Matcher(lds, rds)
 stereo_matcher.find_stereo_matches()
-print("got here")
 stereo_matcher.calculate_depth()
+#Should find out if i can do a pass by reference kind of thing in Python
+lds_matched, rds_matched = stereo_matcher.get_located() #type(train_matched) = Detections
+mapper = Mapper()
+mapper.new_cones = lds_matched
+mapper.visualise_local_map()

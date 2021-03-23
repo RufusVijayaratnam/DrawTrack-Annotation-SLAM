@@ -1,5 +1,5 @@
 import numpy as np
-from Colour import *
+from Colour import Colour
 from Constants import *
 import ColourEstimation as ce
 import cv2 as cv
@@ -21,6 +21,7 @@ class DetectedCone():
         #Unique identifier used for easier index matching
         self.uid = hash("%s%s%s" % (self.colour.name, str(cx), str(cy)))
         self.depth = None
+        self.loc_cs = None
 
     def find_center_distance(self, cone):
         #Returns pixel distance between self and center of another cone
@@ -86,13 +87,6 @@ class Detections(np.ndarray):
         out_of_range_idx = np.where(in_range_idx == False)[0]
         return np.delete(self, out_of_range_idx)
 
-    """ def get_sub_image(self, cone):
-        x1 = int(cone.cx - cone.w / 2)
-        y1 = int(cone.cy - cone.h / 2)
-        x2 = int(cone.cx + cone.w / 2)
-        y2 = int(cone.cy + cone.h / 2)
-        sub_image = self.image[y1:y2, x1:x2]
-        return sub_image """
 
     def colour_estimation(self):
         for i, cone in enumerate(self):
@@ -108,9 +102,8 @@ class Detections(np.ndarray):
             y2 = int(cone.cy + cone.h / 2)
             p1 = tuple([x1, y1])
             p2 = tuple([x2, y2])
-            print("p1: ", p1)
-            print("p2: ", p2)
             cv.rectangle(image, p1, p2, cone.colour.colour)
+            cv.circle(image, (cone.cx, cone.cy), 10, cone.colour.colour)
         cv.imshow("hi", image)
         cv.waitKey(0)
         cv.destroyAllWindows()
@@ -121,29 +114,3 @@ class Detections(np.ndarray):
         cv.waitKey(0)
         cv.destroyAllWindows()
 
-
-        
-
-    
-
-        
-
-rc1 = DetectedCone(500, 500, 50, 100)
-rc2 = DetectedCone(200, 200, 45, 110) 
-rc3 = DetectedCone(340, 800, 45, 212)
-
-rds = np.array([rc1, rc2, rc3], dtype=DetectedCone)
-
-lc1 = DetectedCone(500, 500, 50, 100)
-lc2 = DetectedCone(200 + 120, 200, 45, 110)
-lc3 = DetectedCone(310, 800, 45, 212)
-
-lds = np.array([lc1, lc2, lc3], dtype=DetectedCone)
-
-im_left = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Left_Cam-Render-16.png"
-im_right = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track7-Right_Cam-Render-16.png"
-
-image_left = np.array(cv.imread(im_left))
-image_right = np.array(cv.imread(im_right))
-
-hi = Detections([rc2, rc2, rc3], image_left, max_dist=6)
