@@ -47,6 +47,20 @@ class Matcher():
 
         return point_matches
 
+    def get_colour_filtered_detections(self):
+        colours = np.array([c.colour.name for c in self.query])
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        query_yellow = np.delete(self.query, not_yellow_indices)
+        query_blue = np.delete(self.query, not_blue_indices)
+
+        colours = np.array([c.colour.name for c in self.train])
+        not_yellow_indices = np.where(colours != "yellow")
+        not_blue_indices = np.where(colours != "blue")
+        train_yellow = np.delete(self.train, not_yellow_indices)
+        train_blue = np.delete(self.train, not_blue_indices)
+        return train_blue, query_blue, train_yellow, query_yellow
+
     def deriveDepth(key_points):    
         depths = []
         for key_point in key_points:
@@ -75,7 +89,7 @@ class Matcher():
         #These must be transformed back into the original image coords
         return 0
 
-    def get_located(self):
+    def get_matched(self):
         train_matched = [self.train[val[0]] for val in self.matches]
         query_matched = [self.query[val[1]] for val in self.matches]
         train_located = Detections(train_matched, self.train.image)
@@ -116,26 +130,14 @@ class StereoMatcher(Matcher):
                 self.matches.append((train_index, query_index))
             else:
                 self.matches.append((train_index, -1))
-        
+
     def find_stereo_matches(self):
-        colours = np.array([c.colour.name for c in self.query])
-        not_yellow_indices = np.where(colours != "yellow")
-        not_blue_indices = np.where(colours != "blue")
-        query_yellow = np.delete(self.query, not_yellow_indices)
-        query_blue = np.delete(self.query, not_blue_indices)
-
-        colours = np.array([c.colour.name for c in self.train])
-        not_yellow_indices = np.where(colours != "yellow")
-        not_blue_indices = np.where(colours != "blue")
-        train_yellow = np.delete(self.train, not_yellow_indices)
-        train_blue = np.delete(self.train, not_blue_indices)
-
+        train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
         self.__find_match(train_blue, query_blue)
         self.__find_match(train_yellow, query_yellow)
-        self.matches = np.array(self.matches, dtype=object)
+        self.matches = [val for val in self.matches if val[1] != -1]
 
     def calculate_depth(self):
-        self.matches = [val for val in self.matches if val[1] != -1]
         depths = np.ndarray(len(self.matches))
         print("what up dog")
         train_im = np.array(self.train.image)
@@ -155,9 +157,53 @@ class FrameMatcher(Matcher):
         #When this is called all cones should have depth and point information filled in.
         super().__init__(train, query)
 
-    def find_subsequent_matches():
-        return 0
+    def __find_match(self, train, query_original):
+        #self.get_car_speed()
+        #Here I should use current vehicle speed to calculate maximum possible
+        #travel of the car, and thereforce can estimate a viable depth for the cone 
+        #because at this stage we have stereo depth information on the cones.
+        #Possibility to also use IMU for angle change, something for next year probably.
+        #For track 8, used 16 substeps, max cone spacing was 5 meters
+        #Therefor max travel is 5 / 16
+        #Train represents original frame (prev frame)
+        #Query represents new frame
+        #distance to a cone MUST be negative, or it should be discarded
+        delta_depth_max = 2.5 / 16 * 2
+        delta_depth_min =  2.5 / 16 / 2
+        
+        for i, t in enumerate(train):
+            """ if i == 1:
+                train[:1].show_annotated_image()
+                query_original.show_annotated_image() """
+            t_depth = t.depth
+            query = query_original
+            hash = t.uid
+            delta_depths = [(q.depth - t_depth) for q in query_original]
+            print("delta depths: \n", delta_depths)
+            #Line below will discard all positive depth change values.
+            in_range = np.array([self.in_range(-d, delta_depth_min, delta_depth_max) for d in delta_depths])
+            out_range = np.where(in_range == False)
+            query = np.delete(query, out_range)
+            train_index = self.match_hash(hash, self.train)
 
+            if len(query) == 1:
+                match_hash = query[0].uid
+                query_index = self.match_hash(match_hash, self.query)
+                self.matches.append((train_index, query_index))
+            elif len(query) > 1:
+                print("longer than 1")
+                self.matches.append((train_index, -1))
+            else:
+                self.matches.append((train_index, -1))
+
+    def find_subsequent_matches(self):
+        train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
+        print("Attempting to match Blue")
+        self.__find_match(train_blue, query_blue)
+        print("Attempting to match Yellow")
+        self.__find_match(train_yellow, query_yellow)
+        self.matches = [val for val in self.matches if val[1] != -1]
+        
 
         
 

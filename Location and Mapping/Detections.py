@@ -104,7 +104,7 @@ class Detections(np.ndarray):
             p2 = tuple([x2, y2])
             cv.rectangle(image, p1, p2, cone.colour.colour)
             cv.circle(image, (cone.cx, cone.cy), 10, cone.colour.colour)
-            cv.putText(image, str(cone.depth), (cone.cx, cone.cy), cv.FONT_HERSHEY_SIMPLEX, 1,color=(0,0,0),)
+            #cv.putText(image, str(cone.depth), (cone.cx, cone.cy), cv.FONT_HERSHEY_SIMPLEX, 1,color=(0,0,0),)
         cv.imshow("hi", image)
         cv.waitKey(0)
         cv.destroyAllWindows()

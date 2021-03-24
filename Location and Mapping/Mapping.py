@@ -1,10 +1,12 @@
 import numpy as np
 from Detections import DetectedCone, Detections
-from StereoMatching import Matcher
+import StereoMatching as matching
 from Colour import Colour
 import Constants as consts
 import cv2 as cv
 import torch
+import importlib
+importlib.reload(matching)
 
 class Point():
     def __init__(self, x, y, z):
@@ -19,11 +21,95 @@ class Mapper():
         self.im_size = 300
         self.blank_image = np.zeros((self.im_size, self.im_size, 3), np.uint8)
         self.blank_image[:] = (255, 255, 255)
+        yolov5_path = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/train/exp8/weights/best.pt"
+        weights_path = yolov5_path + ""
+        self.model = torch.hub.load("ultralytics/yolov5", "custom", path_or_model=weights_path)
         
         cv.circle(self.blank_image, (int(self.im_size / 2), int(self.im_size - 20)), 5, (0, 255, 0))
 
+    def stereo_process_new_frames(self, imgs):
+        imgs = [np.array(img) for img in imgs]
+        results = self.model(imgs, size=640)
+        print("Processing")
+
+        detections = []
+        for cone in results.xywh[0]:
+            cx = int(cone[0])
+            cy = int(cone[1])
+            w = int(cone[2])
+            h = int(cone[3])
+            detected_cone = DetectedCone(cx, cy, w, h)
+            detections.append(detected_cone)
+        lds = Detections(detections, imgs[0][:, :, ::-1], max_dist=20)
+
+        detections = []
+        for cone in results.xywh[1]:
+            cx = int(cone[0])
+            cy = int(cone[1])
+            w = int(cone[2])
+            h = int(cone[3])
+            detected_cone = DetectedCone(cx, cy, w, h)
+            detections.append(detected_cone)
+        rds = Detections(detections, imgs[1][:, :, ::-1], max_dist=20)
+
+        if len(lds) == 0 or len(rds) == 0:
+            raise Exception("No Detections")
+            
+        lds.init_detections()
+        rds.init_detections()
+        lds = lds.filter_distance()
+        rds = rds.filter_distance()
+        lds.colour_estimation()
+        rds.colour_estimation()
+
+        stereo_matcher = matching.StereoMatcher(lds, rds)
+        stereo_matcher.find_stereo_matches()
+        stereo_matcher.calculate_depth()
+        #Should find out if i can do a pass by reference kind of thing in Python
+        lds_matched, rds_matched = stereo_matcher.get_matched() #type(train_matched) = Detections
+        self.new_cones = lds_matched
+        self.locate_cones()
+        
+        
+    def show_single_matches(self, train, query):
+        for i in range(1, len(train) + 1):
+            train[i - 1:i].show_annotated_image()
+            query[i - 1:i].show_annotated_image()
+
     def begin(self):
         #Begin camera and capture frames
+        
+        im_left = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Left_Cam-Render-0.png"
+        im_right = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Right_Cam-Render-0.png"
+        im_left1 = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Left_Cam-Render-1.png"
+        im_right1 = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Right_Cam-Render-1.png"
+
+        image_left = np.array(cv.imread(im_left))
+        image_right = np.array(cv.imread(im_right))
+        image_left1 = np.array(cv.imread(im_left1))
+        image_right1 = np.array(cv.imread(im_right1))
+
+        imgs = [image_left, image_right]
+        imgs = [img[:, :, ::-1] for img in imgs]
+        imgs1 = [image_left1, image_right1]
+        imgs1 = [img[:, :, ::-1] for img in imgs1]
+        print("about to process frames for first image")
+        self.stereo_process_new_frames(imgs)
+
+        #Below will be in a loop
+        #####################
+        self.prev_cones = self.new_cones
+        print("about to process frames for second image")
+        self.stereo_process_new_frames(imgs1)
+        #Now we have two sets of located cones
+        frame_matcher = matching.FrameMatcher(self.prev_cones, self.new_cones)
+        frame_matcher.find_subsequent_matches()
+        print("frame matches: \n", frame_matcher.matches)
+        prev_matched, new_matched = frame_matcher.get_matched()
+
+
+        ####################
+        #Now we have new cones and old cones    
 
 
     def show_local_map(self):
@@ -54,4 +140,5 @@ class Mapper():
             point = Point(x_cs, 0, cone.depth)
             self.new_cones[i].loc_cs = point
 
-        
+slam = Mapper()
+slam.begin()
