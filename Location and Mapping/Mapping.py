@@ -30,7 +30,6 @@ class Mapper():
     def stereo_process_new_frames(self, imgs):
         imgs = [np.array(img) for img in imgs]
         results = self.model(imgs, size=640)
-        print("Processing")
 
         detections = []
         for cone in results.xywh[0]:
@@ -76,6 +75,37 @@ class Mapper():
             train[i - 1:i].show_annotated_image()
             query[i - 1:i].show_annotated_image()
 
+    def rms(self, arry):
+        arry = np.array(arry)
+        arry_sum = np.sum(arry ** 2)
+        sum_avg = arry_sum / len(arry)
+        return np.sqrt(sum_avg)
+
+    def derive_motion(self, train, query):
+        dzs = np.ndarray(len(train))
+        for i, (t, q) in enumerate(zip(train, query)):
+            dz = t.depth - q.depth
+            dzs[i] = dz
+        avg_dz = np.average(dzs)
+        print("average dz = ", avg_dz)
+        rotations = np.ndarray(len(train))
+        for i, (t, q) in enumerate(zip(train, query)):
+            gamma_train = t.angle
+            tz = t.loc_cs.z
+            tx = t.loc_cs.x
+            qz = tz - avg_dz
+            #gamma_query is the expected difference in gamma for no car rotation
+            gamma_query = np.arctan(tx / qz)
+            #gamma_e is expected change in angle due to forward motion with no car rotation
+            gamma_e = gamma_query - gamma_train
+            gamma_a = q.angle - t.angle
+            rotation = gamma_a - gamma_e
+            rotations[i] = rotation
+        avg_rotation = self.rms(rotations)
+        print("rms rotation: ", avg_rotation)
+            
+
+
     def begin(self):
         #Begin camera and capture frames
         
@@ -102,10 +132,12 @@ class Mapper():
         print("about to process frames for second image")
         self.stereo_process_new_frames(imgs1)
         #Now we have two sets of located cones
+        #Previous = Train, New = Query
         frame_matcher = matching.FrameMatcher(self.prev_cones, self.new_cones)
         frame_matcher.find_subsequent_matches()
         print("frame matches: \n", frame_matcher.matches)
         prev_matched, new_matched = frame_matcher.get_matched()
+        self.derive_motion(prev_matched, new_matched)
 
 
         ####################
@@ -138,6 +170,7 @@ class Mapper():
             x_cs = cone.depth * np.tan(angle)
             #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, the origins are at the same point initially.
             point = Point(x_cs, 0, cone.depth)
+            self.new_cones[i].angle = angle
             self.new_cones[i].loc_cs = point
 
 slam = Mapper()

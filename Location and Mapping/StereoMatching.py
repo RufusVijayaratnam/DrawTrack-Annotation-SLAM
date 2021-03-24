@@ -198,9 +198,7 @@ class FrameMatcher(Matcher):
 
     def find_subsequent_matches(self):
         train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
-        print("Attempting to match Blue")
         self.__find_match(train_blue, query_blue)
-        print("Attempting to match Yellow")
         self.__find_match(train_yellow, query_yellow)
         self.matches = [val for val in self.matches if val[1] != -1]
         

@@ -21,6 +21,7 @@ class DetectedCone():
         #Unique identifier used for easier index matching
         self.uid = hash("%s%s%s" % (self.colour.name, str(cx), str(cy)))
         self.depth = None
+        self.angle = None
         self.loc_cs = None
 
     def find_center_distance(self, cone):
