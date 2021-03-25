@@ -196,11 +196,16 @@ class FrameMatcher(Matcher):
             else:
                 self.matches.append((train_index, -1))
 
+    def handle_matched_cones(self):
+        for val in self.matches:
+            self.query[val[1]].unmapped = False
+
     def find_subsequent_matches(self):
         train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
         self.__find_match(train_blue, query_blue)
         self.__find_match(train_yellow, query_yellow)
         self.matches = [val for val in self.matches if val[1] != -1]
+        self.handle_matched_cones()
         
 
         

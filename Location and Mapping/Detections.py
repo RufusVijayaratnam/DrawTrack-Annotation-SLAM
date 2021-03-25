@@ -23,6 +23,8 @@ class DetectedCone():
         self.depth = None
         self.angle = None
         self.loc_cs = None
+        self.unmapped = True
+        self.loc_ws = None
 
     def find_center_distance(self, cone):
         #Returns pixel distance between self and center of another cone
