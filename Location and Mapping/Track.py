@@ -10,10 +10,9 @@ class Track():
 
     def update_track(self, cones):
         print("received %i cones" % len(cones))
-        print("cones loc_ws:")
         for cone in cones:
             self.cones.append(cone)
-            print(cone.loc_ws)
+
             
         
     def draw_track(self):

@@ -2,6 +2,7 @@ import numpy as np
 from Colour import *
 from Constants import *
 import ColourEstimation as ce
+import Constants as consts
 import cv2 as cv
 
 
@@ -45,13 +46,13 @@ class DetectedCone():
         #This is a very rough estimate and should be taken with a bucket of salt
         #Unlikely to work well for obscured cones
         margin = 1.1 #Percent for bounds, this can be changed to improve
-        F = 5 * 134.470 / 0.262
-        depth = F * 0.262 / self.h
+        focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.im_width
+        #F = 5 * consts.ref_height_pix / 0.262 #0.262 = cone height m
+        depth = focalLength_pixels * 0.262 / self.h
         depth_max_mm = depth * margin * 1000 
         depth_min_mm = depth / margin * 1000 
         #return distance (z cv space), lower_disparity_pix, upper_disparity_pix
         #Disparity decreases with depth, so depth_max_mm is used to calculate disp_min
-        focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.im_width
         disp_min = baseline_mm * focalLength_pixels / depth_max_mm
         disp_max = baseline_mm * focalLength_pixels / depth_min_mm
         return depth, np.floor(disp_min), np.ceil(disp_max)
@@ -96,7 +97,7 @@ class Detections(np.ndarray):
             sub_image = cone.get_sub_image(self.image)
             self[i].colour = ce.estimate_colour(sub_image)
 
-    def show_annotated_image(self):
+    def get_annotated_image(self):
         image = np.array(self.image)
         for cone in self:
             x1 = int(cone.cx - cone.w / 2)
@@ -106,11 +107,15 @@ class Detections(np.ndarray):
             p1 = tuple([x1, y1])
             p2 = tuple([x2, y2])
             cv.rectangle(image, p1, p2, cone.colour.colour)
-            cv.circle(image, (cone.cx, cone.cy), 10, cone.colour.colour)
             #cv.putText(image, str(cone.depth), (cone.cx, cone.cy), cv.FONT_HERSHEY_SIMPLEX, 1,color=(0,0,0),)
-        cv.imshow("hi", image)
+        return image
+
+    def show_annotated_image(self, name="hi"):
+        image = self.get_annotated_image()
+        cv.imshow(name, image)
         cv.waitKey(0)
-        cv.destroyAllWindows()
+        cv.destroyWindow(name)
+
 
     def show_image(self):
         image = self.image

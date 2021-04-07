@@ -59,17 +59,13 @@ def estimate_colour(image):
 
     if np.logical_and(found_blue, found_yellow):
         colour = ambiguous
-        print("ambiguous")
     elif np.logical_xor(found_yellow, found_blue):
         if found_blue:
             colour = blue
-            print("blue")
         else:
             colour = yellow
-            print("yellow")
     elif not np.logical_or(found_blue, found_yellow):
         colour = Colour("none") #Just to test, can be removed later probably and replace with "ambiguous"
-        print("none")
     
     """ p1 = (stats[i][cv.CC_STAT_LEFT], stats[i][cv.CC_STAT_TOP])
     p2 = (stats[i][cv.CC_STAT_LEFT] + stats[i][cv.CC_STAT_WIDTH], stats[1][cv.CC_STAT_TOP] + stats[1][cv.CC_STAT_HEIGHT]) """

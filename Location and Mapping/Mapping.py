@@ -1,14 +1,16 @@
 import numpy as np
 from Detections import DetectedCone, Detections
-import StereoMatching as matching
+import Matching
 from Colour import Colour
 import Constants as consts
 import cv2 as cv
 import torch
 import importlib
 import Track
-importlib.reload(matching)
+import DebugTools as dbgt
+importlib.reload(Matching)
 importlib.reload(Track)
+importlib.reload(dbgt)
 
 class Point():
     def __init__(self, x, y, z):
@@ -28,9 +30,10 @@ class Point():
         
 
 class Mapper():
-    def __init__(self):
+    def __init__(self, src_train, src_query):
         self.prev_cones = None
         self.new_cones = None
+        self.mapped_cones = None
         self.im_size = 300
         self.blank_image = np.zeros((self.im_size, self.im_size, 3), np.uint8)
         self.blank_image[:] = (255, 255, 255)
@@ -44,6 +47,11 @@ class Mapper():
         weights_path = yolov5_path + ""
         self.model = torch.hub.load("ultralytics/yolov5", "custom", path_or_model=weights_path)
 
+        self.src_train = src_train
+        self.src_query = src_query
+
+        self.motion_updated = True
+
     def stereo_process_new_frames(self, imgs):
         imgs = [np.array(img) for img in imgs]
         results = self.model(imgs, size=640)
@@ -56,7 +64,7 @@ class Mapper():
             h = int(cone[3])
             detected_cone = DetectedCone(cx, cy, w, h)
             detections.append(detected_cone)
-        lds = Detections(detections, imgs[0][:, :, ::-1], max_dist=20)
+        lds = Detections(detections, imgs[0][:, :, ::-1], max_dist=10)
 
         detections = []
         for cone in results.xywh[1]:
@@ -66,7 +74,7 @@ class Mapper():
             h = int(cone[3])
             detected_cone = DetectedCone(cx, cy, w, h)
             detections.append(detected_cone)
-        rds = Detections(detections, imgs[1][:, :, ::-1], max_dist=20)
+        rds = Detections(detections, imgs[1][:, :, ::-1], max_dist=10)
 
         if len(lds) == 0 or len(rds) == 0:
             raise Exception("No Detections")
@@ -78,7 +86,7 @@ class Mapper():
         lds.colour_estimation()
         rds.colour_estimation()
 
-        stereo_matcher = matching.StereoMatcher(lds, rds)
+        stereo_matcher = Matching.StereoMatcher(lds, rds)
         stereo_matcher.find_stereo_matches()
         stereo_matcher.calculate_depth()
         #Should find out if i can do a pass by reference kind of thing in Python
@@ -99,10 +107,15 @@ class Mapper():
         return np.sqrt(sum_avg)
 
     def derive_motion(self, train, query):
+        if len(train) == 0:
+            self.motion_updated = False
+            return
+        self.motion_updated = True
         dzs = np.ndarray(len(train))
         for i, (t, q) in enumerate(zip(train, query)):
             dz = t.depth - q.depth
             dzs[i] = dz
+        
         avg_dz = np.average(dzs)
         print("average dz = ", avg_dz)
         rotations = np.ndarray(len(train))
@@ -119,6 +132,7 @@ class Mapper():
             rotation = gamma_a - gamma_e
             rotations[i] = rotation
         rms_ry = self.rms(rotations)
+        print("rms ry: ", rms_ry)
         
         self.ry += rms_ry
         car_travel_x = avg_dz * np.sin(self.ry)
@@ -140,6 +154,7 @@ class Mapper():
             loc_cs = Point(loc_cs[0][0], loc_cs[0][1], -loc_cs[0][2])
             loc_ws = loc_cs + self.car_pos_ws
             cones[i].loc_ws = loc_ws
+            cones[i].unmapped = False
         return cones
 
     def get_track(self):
@@ -148,44 +163,60 @@ class Mapper():
     def begin(self):
         #Begin camera and capture frames
         
-        im_left = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Left_Cam-Render-0.png"
-        im_right = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Right_Cam-Render-0.png"
-        im_left1 = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Left_Cam-Render-1.png"
-        im_right1 = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/test/images/track8-Right_Cam-Render-1.png"
+        cap_train = cv.VideoCapture(self.src_train)
+        cap_query = cv.VideoCapture(self.src_query)
 
-        image_left = np.array(cv.imread(im_left))
-        image_right = np.array(cv.imread(im_right))
-        image_left1 = np.array(cv.imread(im_left1))
-        image_right1 = np.array(cv.imread(im_right1))
+        slam_initialised = False
+        i = 0
+        while cap_train.isOpened() and cap_query.isOpened():
+            print("Frame: ", i)
+            
+            rett, train_frame = cap_train.read()
+            retq, query_frame = cap_query.read()
+            train_frame = np.array(train_frame)
+            query_frame = np.array(query_frame)
 
-        imgs = [image_left, image_right]
-        imgs = [img[:, :, ::-1] for img in imgs]
-        imgs1 = [image_left1, image_right1]
-        imgs1 = [img[:, :, ::-1] for img in imgs1]
-        print("about to process frames for first image")
-        self.stereo_process_new_frames(imgs)
-        mapped_cones = self.set_cone_ws(self.new_cones)
-        self.track.update_track(mapped_cones)
+            imgs = [np.array(train_frame), np.array(query_frame)]
+            imgs = [img[:, :, ::-1] for img in imgs]
 
-        #Below will be in a loop
-        #####################
-        self.prev_cones = self.new_cones
-        print("about to process frames for second image")
-        self.stereo_process_new_frames(imgs1)
-        #Now we have two sets of located cones
-        #Previous = Train, New = Query
-        frame_matcher = matching.FrameMatcher(self.prev_cones, self.new_cones)
-        frame_matcher.find_subsequent_matches()
-        print("frame matches: \n", frame_matcher.matches)
-        prev_matched, new_matched = frame_matcher.get_matched()
-        self.derive_motion(prev_matched, new_matched)
-        print("now car travel is: ", self.car_pos_ws)
-        unmapped_cones = self.get_unmapped_cones(new_matched)
-        mapped_cones = self.set_cone_ws(unmapped_cones)
-        self.track.update_track(mapped_cones)
+            if not slam_initialised:
+                slam_initialised = True
+                self.stereo_process_new_frames(imgs)
+                self.prev_cones = self.new_cones
+                #mapped_cones = self.set_cone_ws(self.new_cones)
+                #self.track.update_track(mapped_cones)
 
-        ####################
-        #Now we have new cones and old cones    
+            if i > 10:
+                break
+            #Below will be in a loop
+            #####################
+            if self.motion_updated:
+                self.prev_cones = self.new_cones
+                
+            self.stereo_process_new_frames(imgs)
+            #Now we have two sets of located cones
+            #Previous = Train, New = Query
+            #FrameMatcher(Train, Query) matches subsequent frames to derive motion
+            print("len prev cones: ", len(self.prev_cones))
+            print("len new cones: ", len(self.new_cones))
+            prev_anno = self.prev_cones.get_annotated_image()
+            new_anno = self.new_cones.get_annotated_image()
+            #dbgt.vstack_images(prev_anno, new_anno)
+
+            frame_matcher = Matching.FrameMatcher(self.prev_cones, self.new_cones)
+            frame_matcher.find_subsequent_matches()
+            #print("frame matches: \n", frame_matcher.matches)
+            prev_matched, new_matched = frame_matcher.get_matched()
+            frame_matcher.show_matches(name="Frame: %d" % i)
+            self.derive_motion(prev_matched, new_matched)
+            #print("now car travel is: ", self.car_pos_ws)
+            unmapped_cones = self.get_unmapped_cones(new_matched)
+            self.mapped_cones = self.set_cone_ws(unmapped_cones)
+            self.track.update_track(self.mapped_cones)
+
+            ####################
+            #Now we have new cones and old cones    
+            i += 1
 
 
     def show_local_map(self):
@@ -198,6 +229,8 @@ class Mapper():
         cv.imshow("Local Map", self.blank_image)
         cv.waitKey(0)
         cv.destroyWindow("Local Map")
+
+
 
     def get_localised_cones(self):
         return self.new_cones
@@ -217,7 +250,11 @@ class Mapper():
             self.new_cones[i].angle = angle
             self.new_cones[i].loc_cs = point
 
-slam = Mapper()
+render_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/"
+left_vid = render_path + "track8-left.avi"
+right_vid = render_path + "track8-right.avi"
+
+slam = Mapper(left_vid, right_vid)
 slam.begin()
 track = slam.get_track()
 track.draw_track()
