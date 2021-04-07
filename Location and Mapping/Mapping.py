@@ -238,16 +238,12 @@ class Mapper():
     def locate_cones(self):
         im_width = self.new_cones[0].im_width
         for i, cone in enumerate(self.new_cones):
-            if cone.cx < im_width / 2:
-                multiplier = -1
-            else:
-                multiplier = 1
+            
             sensor_loc_mm = abs(im_width / 2 - cone.cx) * (consts.sensorWidth_mm / im_width)
-            angle = np.arctan(sensor_loc_mm / consts.focalLength_mm) * multiplier
+            angle = cone.angle
             x_cs = cone.depth * np.tan(angle) - consts.camera_spacing_m / 2
             #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, the origins are at the same point initially.
             point = Point(x_cs, 0, cone.depth)
-            self.new_cones[i].angle = angle
             self.new_cones[i].loc_cs = point
 
 render_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/"

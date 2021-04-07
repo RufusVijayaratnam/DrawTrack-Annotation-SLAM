@@ -47,15 +47,17 @@ class DetectedCone():
         #Unlikely to work well for obscured cones
         margin = 1.1 #Percent for bounds, this can be changed to improve
         focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.im_width
+        angle = self.angle
         #F = 5 * consts.ref_height_pix / 0.262 #0.262 = cone height m
         depth = focalLength_pixels * 0.262 / self.h
-        depth_max_mm = depth * margin * 1000 
-        depth_min_mm = depth / margin * 1000 
+        distance = depth / np.cos(angle)
+        depth_max_mm = distance * margin * 1000 
+        depth_min_mm = distance / margin * 1000 
         #return distance (z cv space), lower_disparity_pix, upper_disparity_pix
-        #Disparity decreases with depth, so depth_max_mm is used to calculate disp_min
+        #Disparity decreases with distance, so depth_max_mm is used to calculate disp_min
         disp_min = baseline_mm * focalLength_pixels / depth_max_mm
         disp_max = baseline_mm * focalLength_pixels / depth_min_mm
-        return depth, np.floor(disp_min), np.ceil(disp_max)
+        return distance, np.floor(disp_min), np.ceil(disp_max)
 
     def get_sub_image(self, image):
        x1 = int(self.cx - self.w / 2)
@@ -78,6 +80,13 @@ class Detections(np.ndarray):
         for i in range(len(self)):
             self[i].im_width = im_width
 
+    def __set_angle(self):
+        for i, cone in enumerate(self):
+            sensor_loc_mm = abs(im_width / 2 - cone.cx) * (consts.sensorWidth_mm / im_width)
+            angle = np.arctan(sensor_loc_mm / consts.focalLength_mm)
+            self[i].angle = angle
+
+
     def __array_finalize__(self, obj):
         if obj is None: return
         self.max_dist = getattr(obj, 'max_dist', None)
@@ -85,6 +94,7 @@ class Detections(np.ndarray):
 
     def init_detections(self):
         self.__set_im_width()
+        self.__set_angle()
 
     def filter_distance(self):
         in_range_idx = np.array([v.in_range(self.max_dist) for v in self])
