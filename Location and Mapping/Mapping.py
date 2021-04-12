@@ -24,9 +24,18 @@ class Point():
     def __add__(self, obj):
         return Point(self.x + obj.x, self.y + obj.y, self.z + obj.z)
 
+    def __sub__(self, obj):
+        return Point(self.x - obj.x, self.y - obj.y, self.z - obj.z)
+
     def __str__(self):
         prnt = "[%f, %f, %f]" % (self.x, self.y, self.z)
         return prnt
+
+    def __rmul__(self, obj):
+        #for np array
+        vec = np.matrix(self.vec()).transpose()
+        vec = obj * vec
+        return Point(vec[0], vec[1], vec[2])
         
 
 class Mapper():
@@ -250,7 +259,7 @@ render_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Rend
 left_vid = render_path + "track8-left.avi"
 right_vid = render_path + "track8-right.avi"
 
-slam = Mapper(left_vid, right_vid)
+""" slam = Mapper(left_vid, right_vid)
 slam.begin()
 track = slam.get_track()
-track.draw_track()
+track.draw_track() """

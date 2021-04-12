@@ -8,6 +8,7 @@ import sys
 sys.path.append("/mnt/c/Users/Rufus Vijayaratnam/Driverless/Location and Mapping/")
 from Detections import *
 from Colour import *
+from Mapping import *
 
 cone_height_m = 0.262
 cone_widht_m = 0.324
@@ -15,7 +16,7 @@ up_vec = np.array([0, -1, 0]) #CV
 cam_initial_direction = np.array([0, 0, 1]) #CV
 train_or_val = "test"
 rsrc = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/"
- 
+
 
 def axis_transform(point):
     #OpenCV cardinal vectors in blender coordinate system
@@ -94,17 +95,24 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
 
     cam_direction_unit = rotation_matrix.T * np.matrix(cam_initial_direction).transpose()
     cones = []
+    c_loc_ws = Point(cam_loc_ws[0], cam_loc_ws[1], cam_loc_ws[2])
     for i, (blue_cone, yellow_cone) in enumerate(zip(blue_cone_ws, yellow_cone_ws)):
         x, y, w, h = cone_annotation_bounds(cam_loc_ws, blue_cone, intrinsic_matrix, rotation_matrix)
         cone = DetectedCone(x, y, w, h)
         cone.colour = blue
-        cone.loc_ws = blue_cone
+        x_ws = blue_cone[0]
+        y_ws = blue_cone[1]
+        z_ws = blue_cone[2]
+        cone.loc_cs = rotation_matrix * (Point(x_ws, y_ws, z_ws) - c_loc_ws)
         cones.append(cone)
 
         x, y, w, h = cone_annotation_bounds(cam_loc_ws, yellow_cone, intrinsic_matrix, rotation_matrix)
         cone = DetectedCone(x, y, w, h)
+        x_ws = yellow_cone[0]
+        y_ws = yellow_cone[1]
+        z_ws = yellow_cone[2]
         cone.colour = yellow
-        cone.loc_ws = yellow_cone
+        cone.loc_cs = rotation_matrix * (Point(x_ws, y_ws, z_ws) - c_loc_ws)
         cones.append(cone)
 
     
@@ -118,7 +126,7 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
     annotations.init_detections()
     annotations = annotations.remove_off_screen()
     im_width = np.shape(active_image)[1]
-    im_height = np.shape(active_image)[0]
+    im_height = np.shape(active_image)[0]   
     anno_name = render.replace(".png", ".txt")
 
     f_yolo = open(resource_folder + labels_folder + "%s" % (anno_name), "w+")
@@ -131,9 +139,10 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         h = anno.h / im_height
         yolo_string = "0 %f %f %f %f\n" % (cx, cy, w, h)
         f_yolo.write(yolo_string)
-        x_ws, y_ws, z_ws = anno.loc_ws
+        loc = anno.loc_cs
+        x_cs, y_cs, z_cs = loc.x, loc.y, loc.z
         colour = anno.colour.name
-        f_real.write("%s %f %f %f\n" % (colour, x_ws, y_ws, z_ws))
+        f_real.write("%s %f %f %f\n" % (colour, x_cs, y_cs, z_cs))
 
     cv.imwrite(file_path, np.array(annotations.get_annotated_image()))
     f_yolo.close()
