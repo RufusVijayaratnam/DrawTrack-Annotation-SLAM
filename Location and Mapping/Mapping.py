@@ -12,30 +12,7 @@ importlib.reload(Matching)
 importlib.reload(Track)
 importlib.reload(dbgt)
 
-class Point():
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
 
-    def vec(self):
-        return np.array([self.x, self.y, self.z])
-
-    def __add__(self, obj):
-        return Point(self.x + obj.x, self.y + obj.y, self.z + obj.z)
-
-    def __sub__(self, obj):
-        return Point(self.x - obj.x, self.y - obj.y, self.z - obj.z)
-
-    def __str__(self):
-        prnt = "[%f, %f, %f]" % (self.x, self.y, self.z)
-        return prnt
-
-    def __rmul__(self, obj):
-        #for np array
-        vec = np.matrix(self.vec()).transpose()
-        vec = obj * vec
-        return Point(vec[0], vec[1], vec[2])
         
 
 class Mapper():

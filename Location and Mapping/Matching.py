@@ -4,6 +4,7 @@ import ColourEstimation as ce
 from Constants import *
 from Detections import DetectedCone, Detections
 from Colour import Colour
+import DebugTools as dbgt
 
 class Matcher():
     def __init__(self, train, query):
@@ -22,10 +23,10 @@ class Matcher():
         index = np.where(hashes == hash)[0][0]
         return index
 
-    def __match_keypoints(self, train_im, query_im):
+    def match_keypoints(self, train_im, query_im):
         train_im = np.array(train_im)
         query_im = np.array(query_im)
-        orb = cv.ORB_create(nfeatures=20)
+        orb = cv.ORB_create(nfeatures=5)
         kp_query = orb.detect(query_im, None)
         kp_train = orb.detect(train_im, None)
 
@@ -36,15 +37,22 @@ class Matcher():
         point_matches = point_matcher.match(des_query, des_train)
         point_matches = sorted(point_matches, key=lambda x:x.distance)
         
-
-        """ cv.imshow("train", train_im)
-        cv.imshow("query", query_im)
-        img3 = cv.drawMatches(train_im,kp_train,query_im,kp_query,point_matches[:10],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+        """ img3 = cv.drawMatches(train_im,kp_train,query_im,kp_query,point_matches[:10],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
         cv.imshow("matches", img3)
         cv.waitKey(0)
-        cv.destroyAllWindows() """
+        cv.destroyWindow("matches") """
 
-        return point_matches
+
+        if len(point_matches) > 0:
+            tidx = point_matches[0].trainIdx
+            qidx = point_matches[0].queryIdx
+            Q_x = kp_query[qidx].pt[0]
+            T_x = kp_train[tidx].pt[0]
+            return T_x, Q_x
+        else:
+            tcx = np.shape(train_im)[1] / 2
+            qcx = np.shape(query_im)[1] / 2
+            return tcx, qcx
 
     def get_colour_filtered_detections(self):
         colours = np.array([c.colour.name for c in self.query])
@@ -59,7 +67,30 @@ class Matcher():
         train_yellow = np.delete(self.train, not_yellow_indices)
         train_blue = np.delete(self.train, not_blue_indices)
         return train_blue, query_blue, train_yellow, query_yellow
-
+    
+    """ def kp_matching(self):
+        train_im = self.train.image
+        query_im = self.query.image
+        matches = self.matches
+        for match in matches:
+            train = self.train[match[0]]
+            query = self.query[match[1]]
+            ty1 = int(train.cy - train.h / 2)
+            ty2 = int(train.cy + train.h / 2)
+            tx1 = int(train.cx - train.w / 2)
+            tx2 = int(train.cx + train.w / 2)
+            qy1 = int(query.cy - query.h / 2)
+            qy2 = int(query.cy + query.h / 2)
+            qx1 = int(query.cx - query.w / 2)
+            qx2 = int(query.cx + query.w / 2)
+            train_sub = train_im[ty1:ty2, tx1:tx2]
+            query_sub = query_im[qy1:qy2, qx1:qx2]
+            #dbgt.hstack_images(train_sub, query_sub)
+            tx, qx = self.__match_keypoints(train_sub, query_sub)
+            cx1 = tx1 + tx
+            cx2 = qx1 + qx
+            depth
+            """
     def deriveDepth(key_points):    
         depths = []
         for key_point in key_points:
@@ -82,10 +113,6 @@ class Matcher():
         depth = baseline_mm * focalLength_pixels / disparity
         return depth / 1000
 
-    def __key_points_to_image_coords(self):
-        #the matching function returns key points with their coords in the sub image
-        #These must be transformed back into the original image coords
-        return 0
 
     def get_matched(self):
         train_matched = [self.train[val[0]] for val in self.matches]
@@ -93,6 +120,32 @@ class Matcher():
         train_located = Detections(train_matched, self.train.image)
         query_located = Detections(query_matched, self.query.image)
         return train_located, query_located
+
+    def show_single_matches(self):
+        for i, match in enumerate(self.matches):
+            train_im = self.train.image.copy()
+            query_im = self.query.image.copy()
+            cone = self.train[match[0]]
+            x1 = int(cone.cx - cone.w / 2)
+            y1 = int(cone.cy - cone.h / 2)
+            x2 = int(cone.cx + cone.w / 2)
+            y2 = int(cone.cy + cone.h / 2)
+            p1 = tuple([x1, y1])
+            p2 = tuple([x2, y2])
+            cv.rectangle(train_im, p1, p2, (0, 255, 0))
+            
+            cone = self.query[match[0]]
+            x1 = int(cone.cx - cone.w / 2)
+            y1 = int(cone.cy - cone.h / 2)
+            x2 = int(cone.cx + cone.w / 2)
+            y2 = int(cone.cy + cone.h / 2)
+            p1 = tuple([x1, y1])
+            p2 = tuple([x2, y2])
+            cv.rectangle(query_im, p1, p2, (0, 255, 0))
+
+            name = "Match: %d of %d" % (i, len(self.matches))
+            dbgt.hstack_images(train_im, query_im, name=name)
+
            
 
 class StereoMatcher(Matcher):
@@ -134,9 +187,30 @@ class StereoMatcher(Matcher):
         for i, match in enumerate(self.matches):
             train_idx = match[0]
             query_idx = match[1]
+            """
             cx_train = self.train[train_idx].cx
             cx_query = self.query[query_idx].cx
             depth = self.center_depth(cx_train, cx_query)
+            self.train[train_idx].depth = depth
+            self.query[query_idx].depth = depth """
+
+            train = self.train[match[0]]
+            query = self.query[match[1]]
+            ty1 = int(train.cy - train.h / 2)
+            ty2 = int(train.cy + train.h / 2)
+            tx1 = int(train.cx - train.w / 2)
+            tx2 = int(train.cx + train.w / 2)
+            qy1 = int(query.cy - query.h / 2)
+            qy2 = int(query.cy + query.h / 2)
+            qx1 = int(query.cx - query.w / 2)
+            qx2 = int(query.cx + query.w / 2)
+            train_sub = train_im[ty1:ty2, tx1:tx2]
+            query_sub = query_im[qy1:qy2, qx1:qx2]
+            #dbgt.hstack_images(train_sub, query_sub)
+            tx, qx = self.match_keypoints(train_sub, query_sub)
+            cx1 = tx1 + tx
+            cx2 = qx1 + qx
+            depth = self.center_depth(cx1, cx2)
             self.train[train_idx].depth = depth
             self.query[query_idx].depth = depth
 
@@ -147,6 +221,13 @@ class StereoMatcher(Matcher):
         query_im = cv.resize(query_im, (0, 0), None, .5, .5)
 
         stacked = np.hstack((query_im, train_im))
+        im_width = np.shape(stacked)[1] / 2
+        train, query = self.get_matched()
+        for t, q in zip(train, query):
+            p1 = (int(t.cx / 2), int(t.cy / 2))
+            p2 = (int(q.cx / 2 + im_width), int(q.cy / 2))
+            cv.line(stacked, p1, p2, t.colour.colour, thickness=1)
+
         cv.imshow(name, stacked)
         cv.waitKey(0)
         cv.destroyWindow(name)

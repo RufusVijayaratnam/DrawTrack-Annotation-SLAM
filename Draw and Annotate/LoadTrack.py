@@ -48,7 +48,7 @@ def load_track(file):
     
     return track_direction_worldspace, trackpoints_worldspace
 
-def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.5):
+def stereo_cam_ext(filepath, substeps=2, cam_spacing=0.1):
     #Track direction are all unit vectors
     track_direction, track_points_ws = load_track(filepath)
     render_points = np.ndarray((substeps * len(track_points_ws), 3))
