@@ -10,7 +10,7 @@ blank_image[:] = (255, 255, 255)
 indicator_radius_px = 5 #radius of indicator size when clicking. 
 
 track_directory = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Tracks/"
-track_name = "track8.txt"
+track_name = "example.txt"
 
 #This is unencessary but I don't want to remove it because of the file reading.
 isClosed = False
@@ -45,6 +45,10 @@ def add_point(event, x, y, flags, params):
 
 cv.imshow("blank image", blank_image)
 cv.setMouseCallback("blank image", add_point)
-cv.waitKey(0)
-cv.destroyAllWindows()
+while True:
+    k = cv.waitKey(0) & 0xFF
+    if k == 27:
+        cv.destroyAllWindows()
+        break
+
 f.close()

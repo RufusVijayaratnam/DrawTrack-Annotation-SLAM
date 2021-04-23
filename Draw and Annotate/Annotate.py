@@ -14,7 +14,7 @@ cone_height_m = 0.262
 cone_widht_m = 0.324
 up_vec = np.array([0, -1, 0]) #CV
 cam_initial_direction = np.array([0, 0, 1]) #CV
-train_or_val = "test"
+train_or_val = "test" #Don't delete this, just send as parameter
 rsrc = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/"
 
 
@@ -156,7 +156,29 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
     sep = os.sep
     file_path = resource_folder + "Tracks" + sep + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
-    left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=substeps)
+    if tov == "video":
+        left_label = resource_folder + "Renders" + sep + "video" + sep + "labels" + sep + "%s-left_ext.txt" % track_name
+        right_label = resource_folder + "Renders" + sep + "video" + sep + "labels" + sep + "%s-right_ext.txt" % track_name
+        left_cam_points_ws = []
+        right_cam_points_ws = []
+        cam_rotation_ws = []
+        with open(left_label) as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.split()
+                line = [float(val) for val in line]
+                left_cam_points_ws.append(np.array([line[1], line[2], line[3]]))
+                cam_rotation_ws.append(np.array([(line[4]), (line[5]), (line[6])]))
+                
+        with open(right_label) as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.split()
+                line = [float(val) for val in line]
+                right_cam_points_ws.append(np.array([line[1], line[2], line[3]]))
+    else:
+        left_cam_points_ws, right_cam_points_ws, cam_rotation_ws = lt.stereo_cam_ext(file_path, substeps=substeps)
+        
     blue_cone_ws = [axis_transform(point) for point in blue_cone_ws]
     yellow_cone_ws = [axis_transform(point) for point in yellow_cone_ws]
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
@@ -166,9 +188,7 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
     labels_folder = "Renders" + sep + train_or_val + sep + "labels" + sep
     naming_pattern = "%s-R%i.png"
     renders = os.listdir(resource_folder + images_folder)
-    renders = renders[1:]
     renders = [render for render in renders if "%s-" % track_name in render]
-
     imgWidth = cv.imread(resource_folder + images_folder + renders[0]).shape[1]
     focalLength_mm = 5.5 #Should use more realistic values
     sensorWidth_mm = 8.5
@@ -184,6 +204,9 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
         cam_info = render.split("-Render-") #cam_info[0] = left / right, cam_info[1] = cam index
         cam = cam_info[0]
         cam_indx = int(cam_info[1].replace(".png", ""))
+        if tov == "video":
+            cam_indx -= 1
+
         if cam == left:
             cam_loc_ws = left_cam_points_ws[cam_indx]
             cam_rotation = cam_rotation_ws[cam_indx]
