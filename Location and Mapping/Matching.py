@@ -26,7 +26,7 @@ class Matcher():
     def match_keypoints(self, train_im, query_im):
         train_im = np.array(train_im)
         query_im = np.array(query_im)
-        orb = cv.ORB_create(nfeatures=5)
+        orb = cv.ORB_create(nfeatures=500)
         kp_query = orb.detect(query_im, None)
         kp_train = orb.detect(train_im, None)
 
@@ -44,11 +44,14 @@ class Matcher():
 
 
         if len(point_matches) > 0:
-            tidx = point_matches[0].trainIdx
-            qidx = point_matches[0].queryIdx
-            Q_x = kp_query[qidx].pt[0]
-            T_x = kp_train[tidx].pt[0]
-            return T_x, Q_x
+            T_x = []
+            Q_x = []
+            for match in point_matches:
+                tidx = match.trainIdx
+                qidx = match.queryIdx
+                Q_x.append(kp_query[qidx].pt[0])
+                T_x.append(kp_train[tidx].pt[0])
+            return np.array(T_x), np.array(Q_x)
         else:
             tcx = np.shape(train_im)[1] / 2
             qcx = np.shape(query_im)[1] / 2
@@ -68,29 +71,7 @@ class Matcher():
         train_blue = np.delete(self.train, not_blue_indices)
         return train_blue, query_blue, train_yellow, query_yellow
     
-    """ def kp_matching(self):
-        train_im = self.train.image
-        query_im = self.query.image
-        matches = self.matches
-        for match in matches:
-            train = self.train[match[0]]
-            query = self.query[match[1]]
-            ty1 = int(train.cy - train.h / 2)
-            ty2 = int(train.cy + train.h / 2)
-            tx1 = int(train.cx - train.w / 2)
-            tx2 = int(train.cx + train.w / 2)
-            qy1 = int(query.cy - query.h / 2)
-            qy2 = int(query.cy + query.h / 2)
-            qx1 = int(query.cx - query.w / 2)
-            qx2 = int(query.cx + query.w / 2)
-            train_sub = train_im[ty1:ty2, tx1:tx2]
-            query_sub = query_im[qy1:qy2, qx1:qx2]
-            #dbgt.hstack_images(train_sub, query_sub)
-            tx, qx = self.__match_keypoints(train_sub, query_sub)
-            cx1 = tx1 + tx
-            cx2 = qx1 + qx
-            depth
-            """
+
     def deriveDepth(key_points):    
         depths = []
         for key_point in key_points:
@@ -108,9 +89,12 @@ class Matcher():
         return depths
 
     def center_depth(self, cx1, cx2):
-        disparity = abs(cx1 - cx2)
+        disparity = np.array(abs(cx1 - cx2))
         focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.train[0].im_width
-        depth = baseline_mm * focalLength_pixels / disparity
+        depth = np.array(baseline_mm * focalLength_pixels / disparity)
+        m = 0.5 * 100
+        depth = np.array(depth[abs(depth - np.mean(depth)) < m * (np.std(depth)+1)])
+        depth = np.mean(depth)
         return depth / 1000
 
 
@@ -154,7 +138,7 @@ class StereoMatcher(Matcher):
 
     def __find_match(self, train, query_original):
         for i, t in enumerate(train):
-            query = query_original
+            query = query_original.copy()
             tcx = t.cx
             tcy = t.cy
             hash = t.uid
@@ -194,8 +178,8 @@ class StereoMatcher(Matcher):
             self.train[train_idx].depth = depth
             self.query[query_idx].depth = depth """
 
-            train = self.train[match[0]]
-            query = self.query[match[1]]
+            train = self.train[train_idx]
+            query = self.query[query_idx]
             ty1 = int(train.cy - train.h / 2)
             ty2 = int(train.cy + train.h / 2)
             tx1 = int(train.cx - train.w / 2)
@@ -208,6 +192,7 @@ class StereoMatcher(Matcher):
             query_sub = query_im[qy1:qy2, qx1:qx2]
             #dbgt.hstack_images(train_sub, query_sub)
             tx, qx = self.match_keypoints(train_sub, query_sub)
+            
             cx1 = tx1 + tx
             cx2 = qx1 + qx
             depth = self.center_depth(cx1, cx2)
@@ -231,7 +216,37 @@ class StereoMatcher(Matcher):
         cv.imshow(name, stacked)
         cv.waitKey(0)
         cv.destroyWindow(name)
-            
+
+    def draw_search_areas(self):
+        train_matched, _ = self.get_matched()
+        train_im = self.train.image
+        query_im = self.query.image
+        cones = train_matched[:3]
+        cones = np.append(cones, train_matched[12:15])
+        for t in cones:
+            _, disp_min, disp_max = t.monocular_distance_estimate()
+            ty1 = int(t.cy - t.h / 2)
+            ty2 = int(t.cy + t.h / 2)
+            tx1 = int(t.cx - t.w / 2)
+            tx2 = int(t.cx + t.w / 2)
+            train_im = cv.rectangle(train_im, (tx1, ty1), (tx2, ty2), t.colour.colour)
+            qx1 = int(t.cx - disp_max)
+            qx2 = int(t.cx - disp_min)
+            qy1 = ty1
+            qy2 = ty2
+            query_im = cv.line(query_im, (qx1, qy1), (qx1, qy2), (0, 255, 0))
+            query_im = cv.line(query_im, (qx2, qy1), (qx2, qy2), (0, 255, 0))
+        
+        stacked = dbgt.hstack_images(train_im, query_im)
+        for t in cones:
+            _, disp_min, disp_max = t.monocular_distance_estimate()
+            tx = int((t.cx + t.w / 2) / 2)
+            ty = int(t.cy / 2)
+            qy = ty
+            qx = int(t.im_width / 2 + (t.cx - disp_max) / 2)
+            stacked = cv.line(stacked, (tx, ty), (qx, qy), t.colour.colour)
+
+        return stacked
 
 class FrameMatcher(Matcher):
     def __init__(self, train, query):
