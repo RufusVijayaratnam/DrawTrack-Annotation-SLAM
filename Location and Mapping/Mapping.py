@@ -1,5 +1,5 @@
 import numpy as np
-from Detections import DetectedCone, Detections
+from Detections import DetectedCone, Detections, Point
 import Matching
 from Colour import Colour
 import Constants as consts
@@ -154,6 +154,8 @@ class Mapper():
 
         slam_initialised = False
         i = 0
+        print("cap_train:", cap_train.isOpened())
+        print("cap_query:", cap_query.isOpened())
         while cap_train.isOpened() and cap_query.isOpened():
             print("Frame: ", i)
             

@@ -1,25 +1,23 @@
 import cv2 as cv
 import numpy as np
 
+
+
 def hstack_images(im1, im2, name="hstack"):
     im1 = np.array(im1)
     im2 = np.array(im2)
     im1 = cv.resize(im1, (0, 0), None, .5, .5)
     im2 = cv.resize(im2, (0, 0), None, .5, .5)
     stacked = np.hstack((im1, im2))
-    cv.imshow(name, stacked)
-    cv.waitKey(0)
-    cv.destroyWindow(name)
+    return stacked
 
 def vstack_images(im2, im1, name="hstack"):
     im1 = np.array(im1)
     im2 = np.array(im2)
-    im1 = cv.resize(im1, (0, 0), None, .5, .5)
-    im2 = cv.resize(im2, (0, 0), None, .5, .5)
+    im1 = cv.resize(im1, (0, 0), None, 0.25, 0.25)
+    im2 = cv.resize(im2, (0, 0), None, 0.25, 0.25)
     stacked = np.vstack((im1, im2))
-    cv.imshow(name, stacked)
-    cv.waitKey(0)
-    cv.destroyWindow(name)
+    return stacked
 
 def hvstack_images(t1, t2, t3, t4, name="4 stack"):
     t1 = cv.resize(t1, (0, 0), None, 0.25, 0.25)
@@ -32,3 +30,11 @@ def hvstack_images(t1, t2, t3, t4, name="4 stack"):
     cv.imshow(name, stacked)
     cv.waitKey(0)
     cv.destroyWindow(name)
+
+def show_image(name, image):
+    cv.imshow(name, image)
+    while True:
+        k = cv.waitKey(0) & 0xFF
+        if k == 27:
+            cv.destroyWindow(name)
+            break

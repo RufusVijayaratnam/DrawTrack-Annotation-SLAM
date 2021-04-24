@@ -128,7 +128,8 @@ class Matcher():
             cv.rectangle(query_im, p1, p2, (0, 255, 0))
 
             name = "Match: %d of %d" % (i, len(self.matches))
-            dbgt.hstack_images(train_im, query_im, name=name)
+            ims = dbgt.hstack_images(train_im, query_im, name=name)
+            dbgt.show_image("single matches", ims)
 
            
 
@@ -264,7 +265,7 @@ class FrameMatcher(Matcher):
         #Train represents original frame (prev frame)
         #Query represents new frame
         #distance to a cone MUST be negative, or it should be discarded
-        frame_time = 13 / 320
+        frame_time = 1 / 30
         v = 5
         dist = frame_time * v
         delta_depth_max = dist * 2
@@ -300,8 +301,8 @@ class FrameMatcher(Matcher):
 
     def find_subsequent_matches(self):
         train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
-        self.__find_match(train_blue, query_blue)
         self.__find_match(train_yellow, query_yellow)
+        self.__find_match(train_blue, query_blue)
         self.matches = [val for val in self.matches if val[1] != -1]
         self.handle_matched_cones()
 

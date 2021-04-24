@@ -2,7 +2,6 @@ import numpy as np
 from Colour import *
 from Constants import *
 import ColourEstimation as ce
-import Constants as consts
 import cv2 as cv
 
 
@@ -25,11 +24,32 @@ class Point():
         prnt = "[%f, %f, %f]" % (self.x, self.y, self.z)
         return prnt
 
+    def mag(self):
+        mag = np.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+        return mag
+
     def __rmul__(self, obj):
         #for np array
         vec = np.matrix(self.vec()).transpose()
         vec = obj * vec
+        vec = np.array(vec.flatten())[0]
         return Point(vec[0], vec[1], vec[2])
+
+    def __neg__(self):
+        x = self.x
+        y = self.y
+        z = self.z
+        return Point(-x, -y, -z)
+
+    def __mul__(self, obj):
+        vec1 = self.vec()
+        vec2 = obj.vec()
+        cross = np.cross(vec1, vec2)
+        return Point(cross[0], cross[1], cross[2])
+
+    def unit(self):
+        mag = self.mag()
+        return Point(self.x / mag, self.y / mag, self.z / mag)
 
 class DetectedCone():
     #This holds attributes to describe a detected cone
@@ -51,6 +71,7 @@ class DetectedCone():
         self.loc_cs = None
         self.unmapped = True
         self.loc_ws = None
+        self.depths = []
 
     def find_center_distance(self, cone):
         #Returns pixel distance between self and center of another cone
@@ -73,11 +94,11 @@ class DetectedCone():
         margin = 1.1 #Percent for bounds, this can be changed to improve
         focalLength_pixels = (focalLength_mm / sensorWidth_mm) * self.im_width
         angle = self.angle
-        #F = 5 * consts.ref_height_pix / 0.262 #0.262 = cone height m
+        #F = 5 * ref_height_pix / 0.262 #0.262 = cone height m
         depth = focalLength_pixels * 0.262 / self.h
         distance = depth / np.cos(angle)
-        depth_max_mm = distance * margin * 1000 
-        depth_min_mm = distance / margin * 1000 
+        depth_max_mm = depth * margin * 1000 
+        depth_min_mm = depth / margin * 1000 
         #return distance (z cv space), lower_disparity_pix, upper_disparity_pix
         #Disparity decreases with distance, so depth_max_mm is used to calculate disp_min
         disp_min = baseline_mm * focalLength_pixels / depth_max_mm
@@ -91,6 +112,10 @@ class DetectedCone():
        y2 = int(self.cy + self.h / 2)
        sub_image = image[y1:y2, x1:x2]
        return sub_image
+
+    def get_hash(self):
+        cone_hash = hash("%s%s%s" % (self.colour.name, str(self.cx), str(self.cy)))
+        return cone_hash
 
     def on_screen(self):
         cx = self.cx
@@ -125,8 +150,8 @@ class Detections(np.ndarray):
                 multiplier = -1
             else:
                 multiplier = 1
-            sensor_loc_mm = abs(im_width / 2 - cone.cx) * (consts.sensorWidth_mm / im_width)
-            angle = np.arctan(sensor_loc_mm / consts.focalLength_mm) * multiplier
+            sensor_loc_mm = abs(im_width / 2 - cone.cx) * (sensorWidth_mm / im_width)
+            angle = np.arctan(sensor_loc_mm / focalLength_mm) * multiplier
             self[i].angle = angle
 
 
@@ -141,9 +166,15 @@ class Detections(np.ndarray):
         self.max_dist = getattr(obj, 'max_dist', None)
         self.image = getattr(obj, 'image', None)
 
+    def __set_hashes(self):
+        for i, cone in enumerate(self):
+            self[i].uid = cone.get_hash()
+
+
     def init_detections(self):
         self.__set_im_width()
         self.__set_angle()
+        self.__set_hashes()
 
     def filter_distance(self):
         in_range_idx = np.array([v.in_range(self.max_dist) for v in self])
@@ -185,14 +216,15 @@ class Detections(np.ndarray):
     def get_local_map(self):
         im_size = 720
         blank_image = np.zeros((im_size, im_size, 3), np.uint8)
-        blank_image[:] = (255, 255, 255)
+        blank_image[:] = (128, 128, 128)
         cv.circle(blank_image, (int(im_size / 2), int(im_size - 20)), 5, (0, 255, 0), thickness=-1)
         for cone in self:
-            x_cs = cone.loc_cs.x
-            z_cs = cone.loc_cs.z
-            im_y = int(im_size - z_cs / 80 * (im_size - 20))
-            im_x = int(im_size / 2 + x_cs / 40 * im_size)
-            cv.circle(blank_image, (im_x, im_y), 4, cone.colour.colour, thickness=-1)
+            if not cone.loc_cs == None:
+                x_cs = cone.loc_cs.x
+                z_cs = cone.loc_cs.z
+                im_y = int(im_size - z_cs / 80 * (im_size - 20))
+                im_x = int(im_size / 2 + x_cs / 40 * im_size)
+                cv.circle(blank_image, (im_x, im_y), 4, cone.colour.colour, thickness=-1)
         return blank_image
 
     def show_local_map(self):
@@ -204,11 +236,40 @@ class Detections(np.ndarray):
     def locate_cones(self):
         im_width = self[0].im_width
         for i, cone in enumerate(self):
-            sensor_loc_mm = abs(im_width / 2 - cone.cx) * (consts.sensorWidth_mm / im_width)
-            angle = cone.angle
-            x_cs = cone.depth * np.tan(angle) - consts.camera_spacing_m / 2
-            #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, the origins are at the same point initially.
-            point = Point(x_cs, 0, cone.depth)
-            self[i].loc_cs = point
+            if not cone.depth == None:
+                sensor_loc_mm = abs(im_width / 2 - cone.cx) * (sensorWidth_mm / im_width)
+                angle = cone.angle
+                x_cs = cone.depth * np.tan(angle) - camera_spacing_m / 2
+                #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, 
+                # the origins are at the same point initially.
+                point = Point(x_cs, 0, cone.depth)
+                self[i].loc_cs = point
+
+    def point_depth(self, point1, point2):
+        #Checks if a point is in a bounding box then finds depth and adds to array of depths
+        px1 = point1[0]
+        py1 = point1[1]
+        px2 = point2[0]
+        py2 = point2[1]
+        for i, cone in enumerate(self):
+            x1 = int(cone.cx - cone.w / 2)
+            y1 = int(cone.cy - cone.h / 2)
+            x2 = int(cone.cx + cone.w / 2)
+            y2 = int(cone.cy + cone.h / 2)
+            if px1 >= x1 and px1 <= x2 and py1 >= y1 and py1 <= y2:
+                disparity = abs(px1 - px2)
+                if disparity == 0:
+                    break
+                focalLength_pixels = (focalLength_mm / sensorWidth_mm) * cone.im_width
+                depth = baseline_mm * focalLength_pixels / disparity / 1000
+                self[i].depths.append(depth)
+                break
+
+    def remove_unlocated(self):
+        unlocated = np.array([False if cone.loc_cs != None else True for cone in self])
+        unlocated_idx = np.where(unlocated == True)[0]
+        located = np.delete(self, unlocated_idx)
+        return located
+
 
 

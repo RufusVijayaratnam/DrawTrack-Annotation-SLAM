@@ -2,6 +2,7 @@ import numpy as np
 import cv2 as cv
 import os
 from Colour import *
+import DebugTools as dbgt
 
 #l_path = "/mnt/c/Users/Rufus Vijayaratnam/yolov5/runs/detect/exp2/labels/"
 #im_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/train/images/track5-Right_Cam-Render-16.png"
@@ -22,11 +23,29 @@ def remove_noise(image):
             y2 = (y + 1) * refinement_resolution
             sub = image[y1:y2, x1:x2]
             avg = cv.mean(sub)
-            if avg[0] <= 150:
+            if avg[0] <= 200:
                 image[y1:y2, x1:x2] = 0
             else:
                 image[y1:y2, x1:x2] = 255
-    return image
+
+    #find all your connected components (white blobs in your image)
+    n_components, output, stats, centroids = cv.connectedComponentsWithStats(image, connectivity=8)
+    #connectedComponentswithStats yields every seperated component with information on each of them, such as size
+    #the following part is just taking out the background which is also considered a component, but most of the time we don't want that.
+    sizes = stats[1:, -1]; n_components = n_components - 1
+
+    # minimum size of particles we want to keep (number of pixels)
+    #here, it's a fixed value, but you can set it as you want, eg the mean of the sizes or whatever
+    min_size = 0.05 * np.shape(image)[0] * np.shape(image)[1]
+
+    #your answer image
+    img2 = np.zeros((output.shape))
+    #for every component in the image, you keep it only if it's above min_size
+    for i in range(0, n_components):
+        if sizes[i] >= min_size:
+            img2[output == i + 1] = 255
+            
+    return img2
 
 def test_cone_colour(mask):
 
@@ -48,6 +67,7 @@ def test_cone_colour(mask):
         return True 
     else:
         return False
+
         
 
 def estimate_colour(image):
@@ -56,6 +76,11 @@ def estimate_colour(image):
     yellow_mask = cv.inRange(hsv_image, yellow.lower, yellow.upper)
     found_blue = test_cone_colour(blue_mask)
     found_yellow = test_cone_colour(yellow_mask)
+    grey = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    _, white_mask = cv.threshold(grey, 100, 255, cv.THRESH_BINARY)
+    white_mask = remove_noise(white_mask)
+
+    dbgt.show_image("blue binary", white_mask)
 
     if np.logical_and(found_blue, found_yellow):
         colour = ambiguous
