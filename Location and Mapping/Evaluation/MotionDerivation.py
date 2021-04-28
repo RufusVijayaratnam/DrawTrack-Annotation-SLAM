@@ -17,10 +17,12 @@ rsrc_path = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Render
 
 angle = np.pi - np.deg2rad(182.121151)
 coords = []
-location_ws = Detections.Point(-0.049966, 0, -0.001851)
-coords.append(location_ws)
+location_ws = Detections.Vec3(-0.049966, 0, -0.001851)
 initial_direction = (MatrixTools.gen_rotation_matrix(0, angle, 0) * location_ws).unit()
-up_unit = Detections.Point(0, -1, 0)
+up_unit = Detections.Vec3(0, -1, 0)
+normal_vec = 0.05 * up_unit
+car_loc_ws = location_ws + 0.05 * up_unit * initial_direction
+coords.append(car_loc_ws)
 
 def rms(arry):
     squared = arry ** 2
@@ -84,14 +86,16 @@ def get_real_change(frame):
 
 def get_track_map(positions):
     im_size = 720
+    area = 80
+    mid = int(im_size / 2)
     blank_image = np.zeros((im_size, im_size, 3), np.uint8)
     blank_image[:] = (128, 128, 128)
-    cv.circle(blank_image, (int(im_size / 2), int(im_size - 20)), 5, (0, 255, 0), thickness=-1)
+    #cv.circle(blank_image, (int(im_size / 2), int(im_size - 20)), 5, (0, 255, 0), thickness=-1)
     for pos in positions:
         x_cs = pos.x
         z_cs = pos.z
-        im_y = int(im_size - z_cs / 80 * (im_size - 20))
-        im_x = int(im_size / 2 + x_cs / 40 * im_size)
+        im_y = int(mid - z_cs / (area / 2) * mid)
+        im_x = int(mid + x_cs / (area / 2) * mid)
         cv.circle(blank_image, (im_x, im_y), 4, (0, 0, 0), thickness=-1)
     return blank_image
 
@@ -125,7 +129,7 @@ for num in range(1, 140):
                 elif colour == "yellow":
                     detected_cone.colour = Colour.yellow
                 
-                detected_cone.loc_cs = Detections.Point(float(real[1]), float(0), float(real[3]))
+                detected_cone.loc_cs = Detections.Vec3(float(real[1]), float(0), float(real[3]))
                 detections.append(detected_cone)
     train = Detections.Detections(detections, max_dist=100)
     train.image = train_im
@@ -149,7 +153,7 @@ for num in range(1, 140):
                 elif colour == "yellow":
                     detected_cone.colour = Colour.yellow
                 
-                detected_cone.loc_cs = Detections.Point(float(real[1]), float(0), float(real[3]))
+                detected_cone.loc_cs = Detections.Vec3(float(real[1]), float(0), float(real[3]))
                 detections.append(detected_cone)
     query = Detections.Detections(detections, max_dist=100)
     query.image = query_im
@@ -177,10 +181,10 @@ for num in range(1, 140):
     x, z, theta = derive_motion(train_matched, query_matched)
     angle += theta
     rotation_matrix = MatrixTools.gen_rotation_matrix(0, angle, 0)
-    pos_change = Detections.Point(x, 0, z)
+    pos_change = Detections.Vec3(x, 0, z)
     location_ws = location_ws + rotation_matrix * -pos_change
     direction_unit = rotation_matrix * initial_direction
-    normal_unit = direction_unit * up_unit
+    normal_unit = up_unit * direction_unit
     car_pos = location_ws + 0.05 * normal_unit
     coords.append(car_pos)
     

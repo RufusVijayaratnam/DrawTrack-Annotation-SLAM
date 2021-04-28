@@ -34,6 +34,10 @@ class Matcher():
         kp_train, des_train = orb.compute(train_im, kp_train)
 
         point_matcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
+        if des_train is None or des_query is None:
+            tcx = np.shape(train_im)[1] / 2
+            qcx = np.shape(query_im)[1] / 2
+            return tcx, qcx
         point_matches = point_matcher.match(des_query, des_train)
         point_matches = sorted(point_matches, key=lambda x:x.distance)
         
@@ -145,7 +149,7 @@ class StereoMatcher(Matcher):
             hash = t.uid
             _, disp_lower, disp_upper = t.monocular_distance_estimate()
             dists = np.array([abs(q.cx - tcx) for q in query])
-            in_range = np.array([self.in_range(d, disp_lower, disp_upper) for d in dists])
+            in_range = np.array([self.in_range(d, disp_lower / 1.1, disp_upper * 1.1) for d in dists])
             out_range = np.where(in_range == False)
             query = np.delete(query, out_range)
             train_index = self.match_hash(hash, self.train)
@@ -254,7 +258,7 @@ class FrameMatcher(Matcher):
         #When this is called all cones should have depth and point information filled in.
         super().__init__(train, query)
 
-    def __find_match(self, train, query_original):
+    def __find_match(self, train, query_original, n):
         #self.get_car_speed()
         #Here I should use current vehicle speed to calculate maximum possible
         #travel of the car, and thereforce can estimate a viable depth for the cone 
@@ -267,10 +271,13 @@ class FrameMatcher(Matcher):
         #distance to a cone MUST be negative, or it should be discarded
         frame_time = 1 / 30
         v = 5
-        dist = frame_time * v
+        dist = frame_time * v * n
         delta_depth_max = dist * 2
-        delta_depth_min =  dist / 2
+        delta_depth_min =  0
         
+        angle_min = 0
+        angle_max = np.deg2rad(5)
+
         for i, t in enumerate(train):
             """ if i == 1:
                 train[:1].show_annotated_image()
@@ -278,9 +285,14 @@ class FrameMatcher(Matcher):
             t_depth = t.depth
             query = query_original
             hash = t.uid
-            delta_depths = [(q.depth - t_depth) for q in query_original]
+            delta_depths = [(q.depth - t.depth) for q in query_original]
             #Line below will discard all positive depth change values.
             in_range = np.array([self.in_range(-d, delta_depth_min, delta_depth_max) for d in delta_depths])
+            out_range = np.where(in_range == False)
+            query = np.delete(query, out_range)
+
+            delta_angles = [abs(q.angle - t.angle) for q in query]
+            in_range = np.array([self.in_range(angle, angle_min, angle_max) for angle in delta_angles])
             out_range = np.where(in_range == False)
             query = np.delete(query, out_range)
             train_index = self.match_hash(hash, self.train)
@@ -299,14 +311,14 @@ class FrameMatcher(Matcher):
             if not self.train[val[0]].unmapped:
                 self.query[val[1]].unmapped = False
 
-    def find_subsequent_matches(self):
+    def find_subsequent_matches(self, n=1):
         train_blue, query_blue, train_yellow, query_yellow = self.get_colour_filtered_detections()
-        self.__find_match(train_yellow, query_yellow)
-        self.__find_match(train_blue, query_blue)
+        self.__find_match(train_yellow, query_yellow, n)
+        self.__find_match(train_blue, query_blue, n)
         self.matches = [val for val in self.matches if val[1] != -1]
-        self.handle_matched_cones()
+        #self.handle_matched_cones()
 
-    def show_matches(self, name="subsequent matches"):
+    def get_matches_image(self):
         train, query = self.get_matched()
         train_im = train.get_annotated_image()
         query_im = query.get_annotated_image()
@@ -324,6 +336,10 @@ class FrameMatcher(Matcher):
                 cv.circle(stacked, p2, 4, (0, 255, 0), thickness=-1)
             cv.line(stacked, p1, p2, t.colour.colour, thickness=2)
 
+        return stacked
+
+    def show_matches(self, name="subsequent matches"):
+        stacked = self.get_matches_image()
         cv.imshow(name, stacked)
         cv.waitKey(0)
         cv.destroyWindow(name)

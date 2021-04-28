@@ -9,10 +9,6 @@ import DebugTools as dbgt
 
 
 
-ambiguous = (0, 0, 255)
-none = (0, 0, 0)
-
-
 def remove_noise(image):
     refinement_resolution = 5
     for y in range(int(np.shape(image)[0] / refinement_resolution)):
@@ -71,6 +67,12 @@ def test_cone_colour(mask):
         
 
 def estimate_colour(image):
+    
+    
+    shape = np.shape(image)
+    if shape[0] < 2 or shape[1] < 2:
+        return ambiguous
+
     hsv_image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
     blue_mask = cv.inRange(hsv_image, blue.lower, blue.upper)
     yellow_mask = cv.inRange(hsv_image, yellow.lower, yellow.upper)
@@ -80,7 +82,7 @@ def estimate_colour(image):
     _, white_mask = cv.threshold(grey, 100, 255, cv.THRESH_BINARY)
     white_mask = remove_noise(white_mask)
 
-    dbgt.show_image("blue binary", white_mask)
+    #dbgt.show_image("blue binary", white_mask)
 
     if np.logical_and(found_blue, found_yellow):
         colour = ambiguous

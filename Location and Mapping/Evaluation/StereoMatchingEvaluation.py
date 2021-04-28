@@ -19,9 +19,9 @@ ax1.set_ylabel("Error (m)")
 ax1.set_xlabel("Distance (m)")
 
 left_im = ["images/track1-Left_Cam-Render-1.png", "images/track1-Left_Cam-Render-18.png", "images/track1-Left_Cam-Render-34.png", "images/track2-Left_Cam-Render-1.png", "images/track2-Left_Cam-Render-6.png", "images/track3-Left_Cam-Render-1.png", "images/track3-Left_Cam-Render-49.png", "images/track3-Left_Cam-Render-104.png", "images/track4-Left_Cam-Render-1.png", "images/track4-Left_Cam-Render-36.png"]
-right_im = ["images/track1-Right_Cam-Render-1.png","images/track1-Right_Cam-Render-18.png", "images/track1-Right_Cam-Render-34.png", "images/track2-Right_Cam-Render-1.png", "images/track2-Right_Cam-Render-6.png", "images/track3-Right_Cam-Render-1.png", "images/track3-Right_Cam-Render-49.png", "images/track3-Right_Cam-Render-104.png", "images/track4-Right_Cam-Render-1.png", "images/track4-Right_Cam-Render-36.png"]
+right_im = ["images/track1-Right_Cam-Render-1.png","images/track1-Left_Cam-Render-19.png", "images/track1-Right_Cam-Render-34.png", "images/track2-Right_Cam-Render-1.png", "images/track2-Right_Cam-Render-6.png", "images/track3-Right_Cam-Render-1.png", "images/track3-Right_Cam-Render-49.png", "images/track3-Right_Cam-Render-104.png", "images/track4-Right_Cam-Render-1.png", "images/track4-Right_Cam-Render-36.png"]
 left_label = ["labels/track1-Left_Cam-Render-1.txt", "labels/track1-Left_Cam-Render-18.txt", "labels/track1-Left_Cam-Render-34.txt", "labels/track2-Left_Cam-Render-1.txt", "labels/track2-Left_Cam-Render-6.txt", "labels/track3-Left_Cam-Render-1.txt", "labels/track3-Left_Cam-Render-49.txt", "labels/track3-Left_Cam-Render-104.txt", "labels/track4-Left_Cam-Render-1.txt", "labels/track4-Left_Cam-Render-36.txt"]
-right_label = ["labels/track1-Right_Cam-Render-1.txt", "labels/track1-Right_Cam-Render-18.txt", "labels/track1-Right_Cam-Render-34.txt", "labels/track2-Right_Cam-Render-1.txt", "labels/track2-Right_Cam-Render-6.txt", "labels/track3-Right_Cam-Render-1.txt", "labels/track3-Right_Cam-Render-49.txt", "labels/track3-Right_Cam-Render-104.txt", "labels/track4-Right_Cam-Render-1.txt", "labels/track4-Right_Cam-Render-36.txt"]
+right_label = ["labels/track1-Right_Cam-Render-1.txt", "labels/track1-Left_Cam-Render-19.txt", "labels/track1-Right_Cam-Render-34.txt", "labels/track2-Right_Cam-Render-1.txt", "labels/track2-Right_Cam-Render-6.txt", "labels/track3-Right_Cam-Render-1.txt", "labels/track3-Right_Cam-Render-49.txt", "labels/track3-Right_Cam-Render-104.txt", "labels/track4-Right_Cam-Render-1.txt", "labels/track4-Right_Cam-Render-36.txt"]
 left_real = ["labels/Real-track1-Left_Cam-Render-1.txt", "labels/Real-track1-Left_Cam-Render-18.txt", "labels/Real-track1-Left_Cam-Render-34.txt", "labels/Real-track2-Left_Cam-Render-1.txt", "labels/Real-track2-Left_Cam-Render-6.txt", "labels/Real-track3-Left_Cam-Render-1.txt", "labels/Real-track3-Left_Cam-Render-49.txt", "labels/Real-track3-Left_Cam-Render-104.txt", "labels/Real-track4-Left_Cam-Render-1.txt", "labels/Real-track4-Left_Cam-Render-36.txt"]
 colours = ["blue", "yellow", "green", "red", "purple", "orange", "brown", "pink", "grey", "cyan"]
 
@@ -36,7 +36,7 @@ track4 1, 36
 max = 100
 matches = []
 
-for run in range(1):
+for run in range(2, 3):
 
     left_image_path = left_im[run]
     right_image_path = right_im[run]
@@ -103,6 +103,8 @@ for run in range(1):
     for i, real in enumerate(real_cones):
         train[i].colour = real.colour
         query[i].colour = real.colour
+        train[i].depth = real.loc_cs.x
+        query[i].depth = real.loc_cs.x - 0.1
         real_cones[i].cx = train[i].cx
         real_cones[i].cy = train[i].cy
         real_cones[i].w = train[i].w
@@ -120,9 +122,10 @@ for run in range(1):
     ##################################
     #Custom Matching Evaluation
     if eval == "custom":
-        matcher = Matching.StereoMatcher(train, query)
-        matcher.find_stereo_matches()
-        matcher.calculate_depth()
+        matcher = Matching.FrameMatcher(train, query)
+        matcher.find_subsequent_matches()
+        le_im = matcher.get_matches_image()
+        #matcher.calculate_depth()
         train_matched, _ = matcher.get_matched()
         train_matched.locate_cones()
         matched_local = train_matched.get_local_map()
@@ -170,6 +173,10 @@ for run in range(1):
         point_matcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
         point_matches = point_matcher.match(des_query, des_train)
         point_matches = sorted(point_matches, key=lambda x:x.distance)
+
+        img3 = cv.drawMatches(train_im,kp_train,query_im,kp_query,point_matches[:100],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+        dbgt.show_image("matches", img3)
+
         for match in point_matches:
             tidx = match.trainIdx
             qidx = match.queryIdx

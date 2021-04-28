@@ -38,7 +38,7 @@ def monocular_distance_estimate(h):
 
 true_dists0 = []
 est_dists0 = []
-img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/CRotation10/"
+img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/Rotation0/"
 for img_f in os.listdir(img_dir):
     img = np.array(cv.imread(img_dir + img_f))
     img = img[:, :, ::-1]
@@ -53,6 +53,7 @@ for img_f in os.listdir(img_dir):
             w = int(cone[2])
             h = int(cone[3])
             depth, _, _ = monocular_distance_estimate(h)
+            #depth = depth / np.cos(np.deg2rad(10))
             true_dists0.append(true_dist)
             est_dists0.append(depth)
 
@@ -61,7 +62,7 @@ true_dists0, errors0 = (list(t) for t in zip(*sorted(zip(true_dists0, errors0)))
 
 true_dists15 = []
 est_dists15 = []
-img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/CRotation20/"
+img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/Rotation15/"
 for img_f in os.listdir(img_dir):
     img = np.array(cv.imread(img_dir + img_f))
     img = img[:, :, ::-1]
@@ -76,6 +77,7 @@ for img_f in os.listdir(img_dir):
             w = int(cone[2])
             h = int(cone[3])
             depth, _, _ = monocular_distance_estimate(h)
+            #depth = depth / np.cos(np.deg2rad(20))
             true_dists15.append(true_dist)
             est_dists15.append(depth)
 
@@ -84,7 +86,7 @@ true_dists15, errors15 = (list(t) for t in zip(*sorted(zip(true_dists15, errors1
 
 true_dists45 = []
 est_dists45 = []
-img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/CRotation30/"
+img_dir = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Renders/Experiments/Monocular Evaluation/Rotation45/"
 for img_f in os.listdir(img_dir):
     img = np.array(cv.imread(img_dir + img_f))
     img = img[:, :, ::-1]
@@ -99,6 +101,7 @@ for img_f in os.listdir(img_dir):
             w = int(cone[2])
             h = int(cone[3])
             depth, _, _ = monocular_distance_estimate(h)
+            #depth = depth / np.cos(np.deg2rad(30))
             true_dists45.append(true_dist)
             est_dists45.append(depth)
 
@@ -119,12 +122,13 @@ fig.set_size_inches(8, 6)
 ax1.set_ylabel("Error (%)")
 ax1.set_xlabel("Distance (m)")
 ax1.plot(true_dists0, errors0, "bx")
-plt.plot(true_dists0, m0* np.array(true_dists0) + c0, color="blue", label="0 Rotation")
+plt.plot(true_dists0, m0* np.array(true_dists0) + c0, color="blue", label=r"$0^\circ Camera\ Rotation$")
 ax1.plot(true_dists0, errors15, 'ro')
-plt.plot(true_dists15, m15* np.array(true_dists15) + c15, color="red", label="15 Rotation")
+plt.plot(true_dists15, m15* np.array(true_dists15) + c15, color="red", label=r"$15^\circ Camera\ Rotation$")
 ax1.plot(true_dists0, errors45, 'gx')
-plt.plot(true_dists45, m45* np.array(true_dists45) + c45, color="green", label="45 Rotation")
+plt.plot(true_dists45, m45* np.array(true_dists45) + c45, color="green", label=r"$45^\circ Camera\ Rotation$")
 ax1.legend()
 plt.close(fig)
 ax1.set_title("Error vs Distance")
 fig.savefig("Error.png", dpi=200)
+# %%

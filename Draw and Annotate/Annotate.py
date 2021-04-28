@@ -189,6 +189,7 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
     naming_pattern = "%s-R%i.png"
     renders = os.listdir(resource_folder + images_folder)
     renders = [render for render in renders if "%s-" % track_name in render]
+    print("renders 0", renders[0])
     imgWidth = cv.imread(resource_folder + images_folder + renders[0]).shape[1]
     focalLength_mm = 5.5 #Should use more realistic values
     sensorWidth_mm = 8.5

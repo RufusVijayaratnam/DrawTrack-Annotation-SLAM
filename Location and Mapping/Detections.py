@@ -5,7 +5,7 @@ import ColourEstimation as ce
 import cv2 as cv
 
 
-class Point():
+class Vec3():
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
@@ -15,13 +15,17 @@ class Point():
         return np.array([self.x, self.y, self.z])
 
     def __add__(self, obj):
-        return Point(self.x + obj.x, self.y + obj.y, self.z + obj.z)
+        return Vec3(self.x + obj.x, self.y + obj.y, self.z + obj.z)
 
     def __sub__(self, obj):
-        return Point(self.x - obj.x, self.y - obj.y, self.z - obj.z)
+        return Vec3(self.x - obj.x, self.y - obj.y, self.z - obj.z)
 
     def __str__(self):
         prnt = "[%f, %f, %f]" % (self.x, self.y, self.z)
+        return prnt
+
+    def __repr__(self):
+        prnt = "Vec3(%f, %f, %f)" % (self.x, self.y, self.z)
         return prnt
 
     def mag(self):
@@ -30,26 +34,29 @@ class Point():
 
     def __rmul__(self, obj):
         #for np array
-        vec = np.matrix(self.vec()).transpose()
-        vec = obj * vec
-        vec = np.array(vec.flatten())[0]
-        return Point(vec[0], vec[1], vec[2])
+        if type(obj) == np.matrix or type(obj) == int or type(obj) == float:
+            vec = np.matrix(self.vec()).transpose()
+            vec = obj * vec
+            vec = np.array(vec.flatten())[0]
+            return Vec3(vec[0], vec[1], vec[2])
+        else:
+            raise NotImplementedError("__rmul__ not implemented for type(obj) = ", type(obj))
 
     def __neg__(self):
         x = self.x
         y = self.y
         z = self.z
-        return Point(-x, -y, -z)
+        return Vec3(-x, -y, -z)
 
     def __mul__(self, obj):
         vec1 = self.vec()
         vec2 = obj.vec()
         cross = np.cross(vec1, vec2)
-        return Point(cross[0], cross[1], cross[2])
+        return Vec3(cross[0], cross[1], cross[2])
 
     def unit(self):
         mag = self.mag()
-        return Point(self.x / mag, self.y / mag, self.z / mag)
+        return Vec3(self.x / mag, self.y / mag, self.z / mag)
 
 class DetectedCone():
     #This holds attributes to describe a detected cone
@@ -106,12 +113,13 @@ class DetectedCone():
         return distance, np.floor(disp_min), np.ceil(disp_max)
 
     def get_sub_image(self, image):
-       x1 = int(self.cx - self.w / 2)
-       y1 = int(self.cy - self.h / 2)
-       x2 = int(self.cx + self.w / 2)
-       y2 = int(self.cy + self.h / 2)
-       sub_image = image[y1:y2, x1:x2]
-       return sub_image
+        image = np.array(image)
+        x1 = int(self.cx - self.w / 2)
+        y1 = int(self.cy - self.h / 2)
+        x2 = int(self.cx + self.w / 2)
+        y2 = int(self.cy + self.h / 2)
+        sub_image = image[y1:y2, x1:x2]
+        return sub_image
 
     def get_hash(self):
         cone_hash = hash("%s%s%s" % (self.colour.name, str(self.cx), str(self.cy)))
@@ -242,7 +250,7 @@ class Detections(np.ndarray):
                 x_cs = cone.depth * np.tan(angle) - camera_spacing_m / 2
                 #CONVENTION: Before the car moves, the car space coordinate system is aligned with the OpenCv coordinate system, 
                 # the origins are at the same point initially.
-                point = Point(x_cs, 0, cone.depth)
+                point = Vec3(x_cs, 0, cone.depth)
                 self[i].loc_cs = point
 
     def point_depth(self, point1, point2):
