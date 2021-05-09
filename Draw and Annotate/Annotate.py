@@ -5,17 +5,17 @@ from MatrixTools import *
 import cv2 as cv
 import os
 import sys
-sys.path.append("/mnt/c/Users/Rufus Vijayaratnam/Driverless/Location and Mapping/")
+sys.path.append(os.path.abspath("../Location and Mapping"))
 from Detections import *
 from Colour import *
-from Mapping import *
+
 
 cone_height_m = 0.262
 cone_widht_m = 0.324
 up_vec = np.array([0, -1, 0]) #CV
 cam_initial_direction = np.array([0, 0, 1]) #CV
 train_or_val = "test" #Don't delete this, just send as parameter
-rsrc = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/"
+rsrc = os.path.abspath("../Blender/Resources")
 
 
 def axis_transform(point):
@@ -75,7 +75,7 @@ def cone_annotation_bounds(cam_loc_ws, cone_loc_ws, intrinsic_matrix, rotation_m
 
     return x, y, w, h
 
-def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, resource_folder, track_name, res_x=1920, res_y=1080):
+def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, rsrc, track_name, res_x=1920, res_y=1080):
     sep = os.sep
     #img_points = ImagePoints(len(blue_cone_ws), res_x, res_y)
     num_cones = len(blue_cone_ws)
@@ -95,7 +95,7 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
 
     cam_direction_unit = rotation_matrix.T * np.matrix(cam_initial_direction).transpose()
     cones = []
-    c_loc_ws = Point(cam_loc_ws[0], cam_loc_ws[1], cam_loc_ws[2])
+    c_loc_ws = Vec3(cam_loc_ws[0], cam_loc_ws[1], cam_loc_ws[2])
     for i, (blue_cone, yellow_cone) in enumerate(zip(blue_cone_ws, yellow_cone_ws)):
         x, y, w, h = cone_annotation_bounds(cam_loc_ws, blue_cone, intrinsic_matrix, rotation_matrix)
         cone = DetectedCone(x, y, w, h)
@@ -103,7 +103,7 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         x_ws = blue_cone[0]
         y_ws = blue_cone[1]
         z_ws = blue_cone[2]
-        cone.loc_cs = rotation_matrix * (Point(x_ws, y_ws, z_ws) - c_loc_ws)
+        cone.loc_cs = rotation_matrix * (Vec3(x_ws, y_ws, z_ws) - c_loc_ws)
         cones.append(cone)
 
         x, y, w, h = cone_annotation_bounds(cam_loc_ws, yellow_cone, intrinsic_matrix, rotation_matrix)
@@ -112,15 +112,15 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         y_ws = yellow_cone[1]
         z_ws = yellow_cone[2]
         cone.colour = yellow
-        cone.loc_cs = rotation_matrix * (Point(x_ws, y_ws, z_ws) - c_loc_ws)
+        cone.loc_cs = rotation_matrix * (Vec3(x_ws, y_ws, z_ws) - c_loc_ws)
         cones.append(cone)
 
     
     print("Annotating: %s" % (render))
     image_folder = "Renders" + sep + train_or_val + sep + "images" + sep
     labels_folder = "Renders" + sep + train_or_val + sep + "labels" + sep
-    file_path = resource_folder + "Renders" + sep + train_or_val + sep + "Annotated-images" + sep + "%s" % (render.replace(".png", ".jpg"))
-    active_image = cv.imread(resource_folder + image_folder + render)
+    file_path = rsrc + sep + "Renders" + sep + train_or_val + sep + "Annotated-images" + sep + "%s" % (render.replace(".png", ".jpg"))
+    active_image = cv.imread(os.path.join(rsrc, image_folder, render))
     annotations = Detections(cones)
     annotations.image = active_image
     annotations.init_detections()
@@ -129,8 +129,8 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
     im_height = np.shape(active_image)[0]   
     anno_name = render.replace(".png", ".txt")
 
-    f_yolo = open(resource_folder + labels_folder + "%s" % (anno_name), "w+")
-    f_real = open(resource_folder + labels_folder + "%s" % ("Real-" + anno_name), "w+")
+    f_yolo = open(rsrc + sep + labels_folder + "%s" % (anno_name), "w+")
+    f_real = open(rsrc + sep + labels_folder + "%s" % ("Real-" + anno_name), "w+")
 
     for anno in annotations:
         cx = anno.cx / im_width
@@ -150,15 +150,15 @@ def annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_w
         
     return
 
-def annotate_track(resource_folder, track_name, substeps, tov="train"):
+def annotate_track(track_name, substeps, tov="train"):
     global train_or_val
     train_or_val = tov
     sep = os.sep
-    file_path = resource_folder + "Tracks" + sep + track_name + ".txt"
+    file_path = rsrc + sep + "Tracks" + sep + track_name + ".txt"
     blue_cone_ws,  yellow_cone_ws = lt.load_cones(file_path)
     if tov == "video":
-        left_label = resource_folder + "Renders" + sep + "video" + sep + "labels" + sep + "%s-left_ext.txt" % track_name
-        right_label = resource_folder + "Renders" + sep + "video" + sep + "labels" + sep + "%s-right_ext.txt" % track_name
+        left_label = rsrc + sep + "Renders" + sep + "video" + sep + "labels" + sep + "%s-left_ext.txt" % track_name
+        right_label = rsrc + sep +"Renders" + sep + "video" + sep + "labels" + sep + "%s-right_ext.txt" % track_name
         left_cam_points_ws = []
         right_cam_points_ws = []
         cam_rotation_ws = []
@@ -184,13 +184,12 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
     left_cam_points_ws = [axis_transform(point) for point in left_cam_points_ws]
     right_cam_points_ws = [axis_transform(point) for point in right_cam_points_ws]
 
-    images_folder = "Renders" + sep + train_or_val + sep + "images" + sep
-    labels_folder = "Renders" + sep + train_or_val + sep + "labels" + sep
+    images_folder = os.path.join(rsrc, "Renders", train_or_val, "images")
+    labels_folder = os.path.join(rsrc, "Renders", train_or_val, "labels")
     naming_pattern = "%s-R%i.png"
-    renders = os.listdir(resource_folder + images_folder)
+    renders = os.listdir(images_folder)
     renders = [render for render in renders if "%s-" % track_name in render]
-    print("renders 0", renders[0])
-    imgWidth = cv.imread(resource_folder + images_folder + renders[0]).shape[1]
+    imgWidth = cv.imread(os.path.join(images_folder, renders[0])).shape[1]
     focalLength_mm = 5.5 #Should use more realistic values
     sensorWidth_mm = 8.5
     sensorHeight_mm = 4.78
@@ -211,11 +210,11 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
         if cam == left:
             cam_loc_ws = left_cam_points_ws[cam_indx]
             cam_rotation = cam_rotation_ws[cam_indx]
-            annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, resource_folder, track_name)
+            annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, rsrc, track_name)
         elif cam == right:
             cam_loc_ws = right_cam_points_ws[cam_indx]
             cam_rotation = cam_rotation_ws[cam_indx]
-            annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, resource_folder, track_name)
+            annotate_image(render, cam_loc_ws, cam_rotation, blue_cone_ws, yellow_cone_ws, fx, fy, rsrc, track_name)
         else:
             print("Couldn't determine which camera, skipping this render.")
         
@@ -225,3 +224,4 @@ def annotate_track(resource_folder, track_name, substeps, tov="train"):
 
 
 
+annotate_track("track3", 2, tov="test")

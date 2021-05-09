@@ -39,7 +39,7 @@ class Mapper():
         
         
         #DETECTION
-        yolov5_path = os.path.abspath("~/../../../../Rufus Vijayaratnam/yolov5/runs/train/exp8/weights/best.pt")
+        yolov5_path = os.path.abspath("weights.pt")
         weights_path = yolov5_path + ""
         self.model = torch.hub.load("ultralytics/yolov5", "custom", path_or_model=weights_path)
 
@@ -262,7 +262,9 @@ class Mapper():
             self.track.update_track(self.mapped_cones) """
             #self.show_live_output()
             ####################
-            #Now we have new cones and old cones    
+            #Now we have new cones and old cones  
+            track_map = self.get_track_map()
+            cv.imwrite("track_map_example.png", track_map)  
 
 
     def show_local_map(self):
@@ -319,5 +321,9 @@ render_path = os.path.abspath("~/../../Blender/Resources/Renders/Videos/")
 left_vid = os.path.join(render_path, "example-left.mp4")
 right_vid = os.path.join(render_path, "example-right.mp4")
 
-slam = Mapper(left_vid, right_vid)
-slam.begin()
+
+if __name__ == "main":
+    slam = Mapper(left_vid, right_vid)
+    slam.begin()
+    track_map = slam.get_track_map()
+    cv.imwrite("track_map_example.png", track_map)

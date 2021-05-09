@@ -1,6 +1,6 @@
 import numpy as np
 from MatrixTools import *
-rsrc = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/"
+
 
 def load_cones(file, cone_separation_m=2.5):
     track_direction_ws, trackpoints_ws = load_track(file)

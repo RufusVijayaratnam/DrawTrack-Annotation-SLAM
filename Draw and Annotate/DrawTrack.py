@@ -9,12 +9,12 @@ blank_image[:] = (255, 255, 255)
 
 indicator_radius_px = 5 #radius of indicator size when clicking. 
 
-track_directory = "/mnt/c/Users/Rufus Vijayaratnam/Driverless/Blender/Resources/Tracks/"
+track_directory = os.path.abspath("../Blender/Resources/Tracks")
 track_name = "example.txt"
 
 #This is unencessary but I don't want to remove it because of the file reading.
 isClosed = False
-f = open(track_directory+track_name, 'w+')
+f = open(os.path.join(track_directory, track_name), 'w+')
 f.write("Track\n")
 if isClosed:
     f.write("closed\n")
