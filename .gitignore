@@ -18,10 +18,15 @@ Location\ and\ Mapping/results/*
 Draw\ and\ Annotation/.vscode/*
 Blender/FSD\ Environment.blend11
 Blender/FSD\ Environment.blend1
-Blender/FSD\ Environment.blend
 Draw\ and\ Annotate/.vscode/*
 Location\ and\ Mapping/RefDistance.py
 Location\ and\ Mapping/5mRef.png
 Blender/Curve_Test.blend
 Blender/Curve_Test.blend1
 "Blender/FSD Environment.blend11"
+Location and Mapping/custom_overhead.png
+Location and Mapping/real_overhead.png
+Location and Mapping/track_map_example.png
+Location and Mapping/track_map_simple.png
+straight_track.py
+Blender/Resources/Tracks/*
