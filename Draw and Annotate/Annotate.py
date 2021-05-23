@@ -183,8 +183,7 @@ def annotate_track(track_name):
         cam_info = render.split("-Render-") #cam_info[0] = left / right, cam_info[1] = cam index
         cam = cam_info[0]
         cam_indx = int(cam_info[1].replace(".png", ""))
-        if train_or_val == "video":
-            cam_indx -= 1
+        print("Render = " + render + "cam_indx: " + str(cam_indx))
         if cam == left:
             cam_loc_ws = left_cam_points_ws[cam_indx]
             cam_rotation = cam_rotation_ws[cam_indx]
@@ -207,6 +206,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("trackname", help="Name of track to annotate.")
+    parser.add_argument("--images", metavar="'False'", help="Set to 'False' if you don't want the annotation to create annotated images (not yet implemented)")
     args = parser.parse_args()
     track_name = args.trackname
     annotate_track(track_name)

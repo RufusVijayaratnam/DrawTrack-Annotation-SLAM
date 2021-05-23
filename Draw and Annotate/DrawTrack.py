@@ -4,20 +4,20 @@ import argparse
 import os
 #from matplotlib import pyplot as plt
 
-def write_point(file, point_x, point_y):
+def write_point(point_x, point_y):
     point_x -= float(im_size / 2)
     point_y -= float(im_size / 2)
     """ point_x = point_x * grid_representation / grid_size * -1 #Just because
     point_y = point_y * grid_representation / grid_size """
     point_x /= -(im_size / area_size_m) #Coordinate convention
     point_y /= (im_size / area_size_m)
-    f.write("p %f %f 0.0 \r\n" % (point_x, point_y))
+    f.write("p %f %f 0.0\n" % (point_x, point_y))
 
 
 def add_point(event, x, y, flags, params):
     if event == cv.EVENT_LBUTTONUP:
         cv.circle(blank_image, (x, y), indicator_radius_px, (0, 0, 0), -1)
-        write_point(f, x, y)
+        write_point(x, y)
         cv.imshow("blank image", blank_image)
 
 if __name__ == "__main__":
@@ -49,11 +49,11 @@ if __name__ == "__main__":
     start_pos = args.startpos
     sx = -start_pos[0]
     sy = -start_pos[1]
-    center_point = (int(im_size / 2 - sx / area_size_m * im_size / 2), int(im_size / 2 + sy / area_size_m * im_size / 2))
+    center_point = (int(im_size / 2 + sx / area_size_m * im_size / 2), int(im_size / 2 - sy / area_size_m * im_size / 2))
     cv.circle(blank_image, center_point, indicator_radius_px, (0, 255, 0), -1)
 
     
-    if args.initialpos == True: f.write("p %f %f 0.0\n" % (-sx, -sy))
+    if args.initialpos == True: write_point(int(im_size / 2 + sx / area_size_m * im_size / 2), int(im_size / 2 - sy / area_size_m * im_size / 2))
 
     cv.imshow("blank image", blank_image)
     cv.setMouseCallback("blank image", add_point)
